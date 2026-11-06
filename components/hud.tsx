@@ -243,7 +243,7 @@ export function Hud({
     <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-4 pb-16 sm:p-6 sm:pb-16">
       <div className="flex items-start justify-between gap-4">
         <div
-          className="pointer-events-auto max-w-[min(100%,40rem)] rounded-sm bg-[#151B26]/55 p-3 backdrop-blur-[2px] transition-opacity duration-200"
+          className="pointer-events-auto max-w-[min(100%,42rem)] rounded-sm bg-[#1C2636]/72 p-3 backdrop-blur-[3px] transition-opacity duration-200"
           style={{ opacity }}
         >
           {panel}
@@ -296,7 +296,7 @@ function CircuitTape({
 
   return (
     <div className="pointer-events-auto">
-      <div className="hidden max-h-[62vh] w-56 flex-col overflow-y-auto border-l border-[#F4EFE4]/20 bg-[#151B26]/70 pl-3 backdrop-blur-sm md:flex">
+      <div className="hidden max-h-[62vh] w-56 flex-col overflow-y-auto border-l border-[#F4EFE4]/20 bg-[#1C2636]/78 pl-3 backdrop-blur-sm md:flex">
         <p className="font-mono text-[10px] tracking-[0.18em] text-[#F4EFE4]/55">CIRCUITS</p>
         {items.map((item) => {
           const active = item.id === currentId;
@@ -324,12 +324,12 @@ function CircuitTape({
           <SheetTrigger
             nativeButton={false}
             render={
-              <Button variant="outline" className="border-[#F4EFE4]/25 bg-[#151B26]/70 text-[#F4EFE4]">
+              <Button variant="outline" className="border-[#F4EFE4]/25 bg-[#1C2636]/70 text-[#F4EFE4]">
                 Circuits
               </Button>
             }
           />
-          <SheetContent side="right" className="border-[#F4EFE4]/15 bg-[#151B26] text-[#F4EFE4]">
+          <SheetContent side="right" className="border-[#F4EFE4]/15 bg-[#1C2636] text-[#F4EFE4]">
             <SheetHeader>
               <SheetTitle className="text-[#F4EFE4]">Circuits with a racing line</SheetTitle>
             </SheetHeader>

@@ -26,7 +26,7 @@ export function HelmetMark({
         stroke={accent}
         strokeWidth={pattern === "outline" ? 1.8 : 0.7}
       />
-      <path d="M7.4 19.2h20.4c.7-4.6-2.2-9.2-9.6-9.2-6.3 0-9.4 3.8-10.8 9.2Z" fill="#0b1018" opacity="0.62" />
+      <path d="M7.4 19.2h20.4c.7-4.6-2.2-9.2-9.6-9.2-6.3 0-9.4 3.8-10.8 9.2Z" fill="#0b1018" opacity="0.55" />
       <rect x="13" y="5" width="14" height="3.4" rx="0.5" fill={pattern === "stripe" ? accent : "#F4EFE4"} />
       {pattern === "dot" ? (
         <>
@@ -39,11 +39,11 @@ export function HelmetMark({
         <path d="M8 8.5h22" stroke={accent} strokeWidth="1.4" />
       ) : null}
       <text
-        x="22"
-        y="27.5"
+        x="20"
+        y="18.6"
         textAnchor="middle"
         fill="#F4EFE4"
-        fontSize="8.5"
+        fontSize="9"
         fontFamily="IBM Plex Mono, ui-monospace, monospace"
       >
         {number}

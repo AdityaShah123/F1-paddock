@@ -18,7 +18,7 @@ export default function CircuitCanvas({
     <Canvas
       className="h-full w-full"
       dpr={mobile ? [1, 1.15] : [1, 1.7]}
-      camera={{ fov: 48, near: 0.1, far: 240, position: [0, 8, 16] }}
+      camera={{ fov: 44, near: 0.2, far: 320, position: [0, 9, 20] }}
       gl={{
         antialias: !mobile,
         powerPreference: "high-performance",
@@ -26,7 +26,7 @@ export default function CircuitCanvas({
         depth: true,
       }}
       onCreated={({ gl }) => {
-        gl.setClearColor("#151B26");
+        gl.setClearColor("#1C2636");
       }}
     >
       <AdaptiveDpr pixelated />

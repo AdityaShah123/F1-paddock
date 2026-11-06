@@ -1,6 +1,6 @@
 export function SiteFooter() {
   return (
-    <footer className="border-t border-[#F4EFE4]/15 bg-[#151B26]/90 px-5 py-3 text-[10px] leading-4 text-[#F4EFE4]/60 backdrop-blur-sm">
+    <footer className="border-t border-[#F4EFE4]/15 bg-[#1C2636]/92 px-5 py-3 text-[10px] leading-4 text-[#F4EFE4]/60 backdrop-blur-sm">
       <p>
         Unofficial fan site, unaffiliated with Formula 1.{" "}
         <a

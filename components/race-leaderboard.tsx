@@ -24,7 +24,7 @@ export function RaceLeaderboard({
 
   return (
     <section
-      className="pointer-events-auto w-[min(100%,22.5rem)] border border-[#F4EFE4]/15 bg-[#1C2433]/92 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)] backdrop-blur-md"
+      className="pointer-events-auto mb-10 w-[min(100%,23rem)] border border-[#F4EFE4]/18 bg-[#243044] p-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
       aria-label="This race classification"
     >
       <div className="flex items-baseline justify-between gap-2">

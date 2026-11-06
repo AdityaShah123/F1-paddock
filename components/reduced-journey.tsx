@@ -87,7 +87,7 @@ export function ReducedJourney({
             className="border border-[#F4EFE4]/25 px-2 py-1 text-left text-xs"
             style={{
               background: id === circuit.circuitId ? "#F4EFE4" : "transparent",
-              color: id === circuit.circuitId ? "#151B26" : "#F4EFE4",
+              color: id === circuit.circuitId ? "#1C2636" : "#F4EFE4",
             }}
           >
             <span className="block">{circuitSwitcherLabel(id, data.season, id)}</span>
