@@ -10,15 +10,12 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { DriverChip } from "@/components/driver-chip";
-import { PodiumBars } from "@/components/podium";
 import { ClassificationColumn } from "@/components/race-leaderboard";
 import { getHudSnap, subscribeHud } from "@/lib/lap-store";
 import { circuitSwitcherLabel, circuitSwitcherPlace, racePlace, raceTitle } from "@/lib/names";
 import { activeRound, nearestStop } from "@/lib/stops";
 import { patternDash, teamById } from "@/lib/teams";
 import type { Circuit, ContentStop, PaddockData, SeasonRound } from "@/lib/types";
-
-const PURPLE = "#C44DFF";
 
 function formatDate(iso: string) {
   const date = new Date(`${iso}T12:00:00Z`);
@@ -43,24 +40,6 @@ function upcomingCopy(round: SeasonRound) {
     return "Abu Dhabi is the last lock. Four rounds still have to happen.";
   }
   return "This round has not been run. The season is live, not archived.";
-}
-
-function FastestLapBadge({
-  data,
-  round,
-}: {
-  data: PaddockData;
-  round: SeasonRound;
-}) {
-  const fl = data.results.rounds[String(round.round)]?.fastestLap;
-  if (!fl) return null;
-  const driver = data.drivers.find((item) => item.driverId === fl.driverId);
-  return (
-    <p className="mt-5 font-mono text-sm tabular-nums tracking-[0.08em]" style={{ color: PURPLE }}>
-      Fastest lap {fl.time} · {fl.code}
-      {driver ? ` ${driver.permanentNumber}` : ""}
-    </p>
-  );
 }
 
 function IntroCard({ circuit, data }: { circuit: Circuit; data: PaddockData }) {
@@ -120,19 +99,6 @@ function RoundCard({ round, data }: { round: SeasonRound; data: PaddockData }) {
       <p className="mt-3 font-mono text-xs tracking-[0.12em] text-[#F4EFE4]/60">
         {formatDate(round.date)} · {racePlace(round)}
       </p>
-      <div className="mt-4 md:hidden">
-        <PodiumBars round={round} drivers={data.drivers} teams={data.teams} />
-        <FastestLapBadge data={data} round={round} />
-      </div>
-    </div>
-  );
-}
-
-function RoundPodium({ round, data }: { round: SeasonRound; data: PaddockData }) {
-  return (
-    <div className="text-center">
-      <PodiumBars round={round} drivers={data.drivers} teams={data.teams} />
-      <FastestLapBadge data={data} round={round} />
     </div>
   );
 }
@@ -300,20 +266,15 @@ export function Hud({
       >
         {panel}
       </div>
-      {stop.kind === "round" && stop.round.status === "completed" ? (
-        <div className="absolute inset-x-[22%] bottom-20 hidden justify-center md:flex" style={{ opacity }}>
-          <RoundPodium round={stop.round} data={data} />
-        </div>
-      ) : null}
 
       {showFlanks ? (
-        <div className="absolute inset-x-4 bottom-16 grid grid-cols-2 gap-3 md:hidden">
+        <div className="absolute inset-x-4 bottom-4 grid grid-cols-2 gap-3 md:hidden">
           <ClassificationColumn rows={left} race={race} teams={data.teams} purpleId={purpleId} align="left" />
           <ClassificationColumn rows={right} race={race} teams={data.teams} purpleId={purpleId} align="right" />
         </div>
       ) : null}
 
-      <p className="absolute bottom-12 left-1/2 hidden -translate-x-1/2 font-mono text-[11px] tracking-[0.28em] text-[#F4EFE4]/40 sm:block">
+      <p className="absolute bottom-4 left-1/2 hidden -translate-x-1/2 font-mono text-[11px] tracking-[0.28em] text-[#F4EFE4]/40 sm:block">
         LAP {(snap.t * 100).toFixed(0)}
       </p>
     </div>

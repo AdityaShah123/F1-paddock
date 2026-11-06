@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Lenis from "lenis";
 import { LightsOut, hasSeenLights } from "@/components/lights-out";
 import { Hud } from "@/components/hud";
+import { PodiumDock } from "@/components/podium";
 import { ReducedJourney } from "@/components/reduced-journey";
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
@@ -160,10 +161,10 @@ export function Experience() {
       {data && circuit && !reducedMotion ? (
         <>
           <div className="h-[920vh]" aria-hidden="true" />
-          <div className="fixed inset-0">
-            <CircuitCanvas circuit={circuit} stops={stops} mobile={mobile} />
-            {phase === "drive" ? (
-              <>
+          <div className="fixed inset-0 flex flex-col bg-[#1A2332]">
+            <div className="relative min-h-0 flex-1">
+              <CircuitCanvas circuit={circuit} stops={stops} mobile={mobile} />
+              {phase === "drive" ? (
                 <Hud
                   data={data}
                   circuit={circuit}
@@ -171,10 +172,13 @@ export function Experience() {
                   onSelectCircuit={selectCircuit}
                   circuitLoading={circuitLoading}
                 />
-                <div className="pointer-events-auto absolute inset-x-0 bottom-0">
-                  <SiteFooter />
-                </div>
-              </>
+              ) : null}
+            </div>
+            {phase === "drive" ? <PodiumDock data={data} stops={stops} /> : null}
+            {phase === "drive" ? (
+              <div className="pointer-events-auto shrink-0">
+                <SiteFooter />
+              </div>
             ) : null}
           </div>
           <div id="season-copy" className="sr-only">
