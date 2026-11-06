@@ -368,28 +368,175 @@ async function buildSeason(calendar, sessionByCircuit, resultsByRound, completed
 // Circuit telemetry
 // ---------------------------------------------------------------------------
 
-/** Picks the fastest clean (non pit-in/out, plausible) lap in a session. */
+/** All clean (non pit-out, plausibly timed) laps in a session, fastest first. */
+function cleanLaps(laps) {
+  return laps
+    .filter(
+      (l) =>
+        Number.isFinite(l.lap_duration) &&
+        l.lap_duration > 50 &&
+        l.lap_duration < 300 &&
+        !l.is_pit_out_lap &&
+        l.date_start &&
+        Number.isFinite(l.duration_sector_1) &&
+        Number.isFinite(l.duration_sector_2) &&
+        Number.isFinite(l.duration_sector_3),
+    )
+    .sort((a, b) => a.lap_duration - b.lap_duration);
+}
+
+/** Picks the fastest clean lap in a session. */
 function pickHotLap(laps) {
-  const candidates = laps.filter(
-    (l) =>
-      Number.isFinite(l.lap_duration) &&
-      l.lap_duration > 50 &&
-      l.lap_duration < 300 &&
-      !l.is_pit_out_lap &&
-      l.date_start &&
-      Number.isFinite(l.duration_sector_1) &&
-      Number.isFinite(l.duration_sector_2) &&
-      Number.isFinite(l.duration_sector_3),
+  return cleanLaps(laps)[0] || null;
+}
+
+/**
+ * Orders candidate laps so the fastest lap of each phase of the race is tried early.
+ *
+ * Some sessions have a truncated `location` feed: Monaco 2026 publishes positions only
+ * up to 14:00 UTC while the race runs past 15:25, so every genuinely fastest lap (which
+ * come late, on low fuel) has no position data at all. Interleaving by race phase finds
+ * a covered lap within a few attempts instead of burning the whole budget on late laps.
+ */
+function candidateLaps(laps, limit = 10) {
+  const clean = cleanLaps(laps);
+  if (!clean.length) return [];
+  const maxLap = Math.max(...clean.map((l) => l.lap_number || 1));
+  const buckets = 5;
+  const picked = [];
+  const seen = new Set();
+  const take = (l) => {
+    const key = `${l.driver_number}:${l.lap_number}`;
+    if (l && !seen.has(key)) {
+      seen.add(key);
+      picked.push(l);
+    }
+  };
+  take(clean[0]);
+  for (let b = 0; b < buckets; b++) {
+    const hi = ((b + 1) / buckets) * maxLap;
+    take(clean.find((l) => (l.lap_number || 1) <= hi));
+  }
+  for (const l of clean) {
+    if (picked.length >= limit) break;
+    take(l);
+  }
+  return picked.slice(0, limit);
+}
+
+/**
+ * Recovers a hot lap from the position feed alone, ignoring the `laps` endpoint's clock.
+ *
+ * Needed where the two feeds disagree about when the race happened. Monaco 2026 publishes
+ * positions only for roughly 12:20-13:10 UTC while `laps` timestamps run 13:03-15:25, so
+ * every lap window derived from `laps` misses the position data entirely. Detecting
+ * start/finish crossings geometrically sidesteps the disagreement.
+ */
+async function deriveLapFromLocation(session, driverNumber, reference) {
+  const raw = await getJson(
+    `${OPENF1}/location?session_key=${session.sessionKey}&driver_number=${driverNumber}`,
+    { allow404: true },
   );
-  if (!candidates.length) return null;
-  candidates.sort((a, b) => a.lap_duration - b.lap_duration);
-  return candidates[0];
+  if (!raw || !raw.length) throw new Error('no location telemetry for driver');
+
+  const pts = raw
+    .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && !(p.x === 0 && p.y === 0))
+    .map((p) => ({ x: p.x / 10, y: p.y / 10, t: Date.parse(p.date) }))
+    .filter((p) => Number.isFinite(p.t))
+    .sort((a, b) => a.t - b.t);
+  if (pts.length < 500) throw new Error('too few position samples to derive a lap');
+
+  // Anchor on a point from the middle of the feed, where the car is certainly circulating.
+  const ref = pts[Math.floor(pts.length / 2)];
+  const steps = pts.slice(1).map((p, i) => Math.hypot(p.x - pts[i].x, p.y - pts[i].y));
+  const median = [...steps].sort((a, b) => a - b)[steps.length >> 1] || 10;
+  const threshold = Math.max(40, median * 4);
+
+  // Each contiguous pass through the anchor's neighbourhood yields one crossing.
+  const crossings = [];
+  let inZone = false;
+  let bestI = -1;
+  let bestD = Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const d = Math.hypot(pts[i].x - ref.x, pts[i].y - ref.y);
+    if (d < threshold) {
+      if (!inZone) {
+        inZone = true;
+        bestD = Infinity;
+      }
+      if (d < bestD) {
+        bestD = d;
+        bestI = i;
+      }
+    } else if (inZone) {
+      inZone = false;
+      crossings.push(bestI);
+    }
+  }
+  if (inZone && bestI >= 0) crossings.push(bestI);
+
+  const laps = [];
+  for (let i = 1; i < crossings.length; i++) {
+    const a = crossings[i - 1];
+    const b = crossings[i];
+    const duration = (pts[b].t - pts[a].t) / 1000;
+    const samples = b - a;
+    // Keep laps near the session's known best; anything much slower is a safety-car lap.
+    if (duration > reference * 0.9 && duration < reference * 1.35 && samples >= 150) {
+      laps.push({ a, b, duration, samples });
+    }
+  }
+  if (!laps.length) throw new Error('no closed lap found in position feed');
+  laps.sort((x, y) => x.duration - y.duration);
+  const best = laps[0];
+  return {
+    driver_number: driverNumber,
+    lap_number: null,
+    date_start: new Date(pts[best.a].t).toISOString(),
+    lap_duration: best.duration,
+    derived: true,
+  };
 }
 
 async function buildCircuit(race, session, laps) {
-  const lap = pickHotLap(laps);
-  if (!lap) throw new Error('no clean timed lap in session');
+  const candidates = candidateLaps(laps);
+  if (!candidates.length) throw new Error('no clean timed lap in session');
+  const failures = [];
+  for (const lap of candidates) {
+    try {
+      return await buildCircuitFromLap(race, session, lap);
+    } catch (e) {
+      failures.push(`drv#${lap.driver_number} lap${lap.lap_number}: ${e.message}`);
+    }
+  }
 
+  // Sector split ratios stay valid even when the absolute timestamps do not, so carry
+  // them over from the fastest timed lap onto whatever lap the position feed yields.
+  const fastest = candidates[0];
+  const sectorRatios = [
+    fastest.duration_sector_1,
+    fastest.duration_sector_2,
+    fastest.duration_sector_3,
+  ].map((d) => d / fastest.lap_duration);
+
+  const drivers = [...new Set(candidates.map((l) => l.driver_number))].slice(0, 3);
+  for (const driverNumber of drivers) {
+    try {
+      const derived = await deriveLapFromLocation(session, driverNumber, fastest.lap_duration);
+      derived.duration_sector_1 = sectorRatios[0] * derived.lap_duration;
+      derived.duration_sector_2 = sectorRatios[1] * derived.lap_duration;
+      derived.duration_sector_3 = sectorRatios[2] * derived.lap_duration;
+      const circuit = await buildCircuitFromLap(race, session, derived);
+      warn(`${race.circuitId}: lap timings and positions disagree, lap recovered from the position feed`);
+      return circuit;
+    } catch (e) {
+      failures.push(`derived drv#${driverNumber}: ${e.message}`);
+    }
+  }
+  throw new Error(`${failures.length} attempts failed (${failures[0]}; ${failures[failures.length - 1]})`);
+}
+
+async function buildCircuitFromLap(race, session, lap) {
   const t0 = Date.parse(lap.date_start);
   const t1 = t0 + lap.lap_duration * 1000;
   // Pad the query a little either side so interpolation at the lap boundary has data.
@@ -428,22 +575,37 @@ async function buildCircuit(race, session, laps) {
   // Collapse duplicate timestamps/positions.
   pts = pts.filter((p, i) => i === 0 || Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y) > 0.01);
 
-  if (pts.length < 120) throw new Error(`only ${pts.length} usable location samples`);
+  // A feed can carry a full-rate sample count yet only a handful of distinct fixes when
+  // the transponder sticks; such a lap cannot produce real geometry at any point count.
+  if (pts.length < 120) {
+    throw new Error(`only ${pts.length} distinct position fixes in the lap (feed is quantised or truncated)`);
+  }
 
-  // Drop single-sample GPS spikes: anything that jumps far beyond the local median step.
-  const steps = pts.slice(1).map((p, i) => Math.hypot(p.x - pts[i].x, p.y - pts[i].y));
-  const median = [...steps].sort((a, b) => a - b)[Math.floor(steps.length / 2)] || 1;
-  const limit = Math.max(median * 6, 50);
+  // Drop transponder spikes by implied speed, not by raw distance. The sample interval
+  // is uneven (0.24 s typically, but gaps over 1 s are common), so a plain distance
+  // threshold rejects legitimate samples on fast sections - and because each survivor is
+  // measured against the last *kept* point, one wrong rejection cascades and eats the
+  // rest of the lap. Scaling the threshold by dt cannot cascade.
+  const MAX_SPEED_MS = 130; // ~470 km/h; beyond any F1 car, so this is a glitch
   const cleaned = [pts[0]];
   for (let i = 1; i < pts.length; i++) {
     const prev = cleaned[cleaned.length - 1];
-    if (Math.hypot(pts[i].x - prev.x, pts[i].y - prev.y) > limit) continue;
+    const dt = (pts[i].t - prev.t) / 1000;
+    const dist = Math.hypot(pts[i].x - prev.x, pts[i].y - prev.y);
+    if (dt > 0 && dist / dt > MAX_SPEED_MS) continue;
     cleaned.push(pts[i]);
   }
   pts = cleaned;
 
+  // The closing segment is the one gap we cannot measure; reject a lap whose ends are far
+  // apart relative to its own length, which means samples are missing rather than merely sparse.
+  const rawLength = pts
+    .slice(1)
+    .reduce((sum, p, i) => sum + Math.hypot(p.x - pts[i].x, p.y - pts[i].y), 0);
   const closureGap = Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y);
-  if (closureGap > 400) throw new Error(`lap does not close, ${closureGap.toFixed(0)} m gap`);
+  if (closureGap > Math.max(150, rawLength * 0.03)) {
+    throw new Error(`lap does not close, ${closureGap.toFixed(0)} m gap on a ${rawLength.toFixed(0)} m lap`);
+  }
 
   // The window is one full lap, so the last sample sits just before the line and the
   // first just after: treating the polyline as closed completes the circuit exactly once.
