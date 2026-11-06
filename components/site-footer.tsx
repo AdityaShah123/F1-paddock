@@ -10,7 +10,7 @@ export function SiteFooter() {
           F1 fan-site guidelines
         </a>
         . Results and fastest laps from Jolpica. Portraits from Wikimedia Commons / Wikipedia
-        (typically CC BY-SA), cached locally and duotoned in team colour. No live car_data.
+        (typically CC BY-SA), cached locally and shown in greyscale. Colour lives on the podium. No live car_data.
       </p>
     </footer>
   );

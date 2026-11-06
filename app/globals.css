@@ -132,7 +132,5 @@
 }
 
 .portrait-img {
-  filter: grayscale(1) contrast(1.18) brightness(1.05);
-  mix-blend-mode: multiply;
-  opacity: 0.92;
+  filter: grayscale(1) contrast(1.12) brightness(0.96);
 }

@@ -35,9 +35,9 @@ Needs Node 20+.
 - **Lights-out** is the loader. It does not replay in the same tab.
 - **Scroll** drives the camera along OpenF1 position telemetry. The racing line is a lit ribbon: gold/cream on the gas, red on the brakes, and Spa actually climbs.
 - **Rounds** sit on the line. Each completed stop has a podium bar plot (P1 tallest) plus a purple fastest lap. Four unlit pins (Interlagos, Vegas, Losail, Yas Marina) are empty on purpose.
-- **This race** is a classification table (top 10, expand for the rest) that follows you from round to round.
+- **This race** is the top 10, five names left and five right, flanking the circuit.
 - **Standings** use `season-arc.json`. Colour is the team. Pattern / driver code breaks Audi vs Ferrari.
-- **Drivers** show a Commons portrait (duotoned in team colour), a generated helmet, and the race number. Colour still cannot identify a driver alone.
+- **Drivers** show a greyscale Commons portrait, a generated helmet, and the race number. Colour lives on the podium bars only.
 - **Circuit tape** uses the full race name and locality, never slugs. Bahrain GP is Sepang.
 
 The browser never calls OpenF1 `car_data` or `location`. Everything under `public/data/` is prebaked. Portraits are cached in `public/portraits/` (Wikimedia Commons / Wikipedia, typically CC BY-SA).

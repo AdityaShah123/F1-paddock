@@ -26,7 +26,7 @@ export default function CircuitCanvas({
         depth: true,
       }}
       onCreated={({ gl }) => {
-        gl.setClearColor("#1C2636");
+        gl.setClearColor("#1A2332");
       }}
     >
       <AdaptiveDpr pixelated />

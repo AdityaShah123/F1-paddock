@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { DriverChip } from "@/components/driver-chip";
 import { PodiumBars } from "@/components/podium";
-import { RaceLeaderboard } from "@/components/race-leaderboard";
+import { ClassificationColumn } from "@/components/race-leaderboard";
 import { getHudSnap, subscribeHud } from "@/lib/lap-store";
 import { circuitSwitcherLabel, circuitSwitcherPlace, racePlace, raceTitle } from "@/lib/names";
 import { activeRound, nearestStop } from "@/lib/stops";
@@ -56,7 +56,7 @@ function FastestLapBadge({
   if (!fl) return null;
   const driver = data.drivers.find((item) => item.driverId === fl.driverId);
   return (
-    <p className="mt-3 font-mono text-sm tabular-nums" style={{ color: PURPLE }}>
+    <p className="mt-5 font-mono text-sm tabular-nums tracking-[0.08em]" style={{ color: PURPLE }}>
       Fastest lap {fl.time} · {fl.code}
       {driver ? ` ${driver.permanentNumber}` : ""}
     </p>
@@ -66,21 +66,20 @@ function FastestLapBadge({
 function IntroCard({ circuit, data }: { circuit: Circuit; data: PaddockData }) {
   const round = data.season.rounds.find((item) => item.circuitId === circuit.circuitId);
   return (
-    <div>
-      <p className="font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/70">
+    <div className="text-center">
+      <p className="font-mono text-[11px] tracking-[0.32em] text-[#F4EFE4]/55">
         {data.season.year} · {data.season.completedRounds} OF {data.season.totalRounds} RUN
       </p>
       <h2
-        className="mt-2 max-w-[18ch] text-[clamp(1.8rem,5.4vw,3.8rem)] leading-[0.92] text-[#F4EFE4]"
-        style={{ fontVariationSettings: '"wdth" 78', fontWeight: 650 }}
+        className="mt-3 text-[clamp(2.4rem,6vw,4.6rem)] leading-[0.86] text-[#F4EFE4]"
+        style={{ fontVariationSettings: '"wdth" 72', fontWeight: 650 }}
       >
         {round ? raceTitle(round) : circuit.name}
       </h2>
-      <p className="mt-2 font-mono text-sm text-[#F4EFE4]/80">
-        {round ? racePlace(round) : circuit.country} · {circuit.lengthMetres.toLocaleString()} m
-      </p>
-      <p className="mt-3 max-w-md text-sm leading-6 text-[#F4EFE4]/85">
-        Antonelli leads by 119 with four races left. Travel the lap. The season is placed on it.
+      <p className="mt-3 font-mono text-sm tracking-[0.12em] text-[#F4EFE4]/70">
+        {round ? racePlace(round) : circuit.country}
+        <span className="mx-3 text-[#F4EFE4]/30">/</span>
+        {circuit.lengthMetres.toLocaleString()} m
       </p>
     </div>
   );
@@ -89,40 +88,49 @@ function IntroCard({ circuit, data }: { circuit: Circuit; data: PaddockData }) {
 function RoundCard({ round, data }: { round: SeasonRound; data: PaddockData }) {
   if (round.status !== "completed") {
     return (
-      <div>
-        <p className="font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/70">
+      <div className="text-center">
+        <p className="font-mono text-[11px] tracking-[0.32em] text-[#F4EFE4]/55">
           ROUND {round.round} · UNRUN
         </p>
         <h2
-          className="mt-2 max-w-[18ch] text-[clamp(1.7rem,5vw,3.4rem)] leading-[0.92] text-[#F4EFE4]"
-          style={{ fontVariationSettings: '"wdth" 78', fontWeight: 620 }}
+          className="mt-3 text-[clamp(2.2rem,5.4vw,4.1rem)] leading-[0.86] text-[#F4EFE4]"
+          style={{ fontVariationSettings: '"wdth" 72', fontWeight: 620 }}
         >
           {raceTitle(round)}
         </h2>
-        <p className="mt-2 font-mono text-xs text-[#F4EFE4]/75">
+        <p className="mt-3 font-mono text-xs tracking-[0.12em] text-[#F4EFE4]/60">
           {formatDate(round.date)} · {racePlace(round)}
         </p>
-        <p className="mt-4 max-w-md border border-dashed border-[#F4EFE4]/30 bg-[#F4EFE4]/8 p-4 text-sm leading-6 text-[#F4EFE4]/85">
-          {upcomingCopy(round)}
-        </p>
+        <p className="mx-auto mt-6 max-w-md text-sm leading-6 text-[#F4EFE4]/75">{upcomingCopy(round)}</p>
       </div>
     );
   }
 
   return (
-    <div>
-      <p className="font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/70">
+    <div className="text-center">
+      <p className="font-mono text-[11px] tracking-[0.32em] text-[#F4EFE4]/55">
         ROUND {round.round} · CHEQUERED
       </p>
       <h2
-        className="mt-2 max-w-[18ch] text-[clamp(1.7rem,5vw,3.4rem)] leading-[0.92] text-[#F4EFE4]"
-        style={{ fontVariationSettings: '"wdth" 78', fontWeight: 620 }}
+        className="mt-3 text-[clamp(2.2rem,5.4vw,4.1rem)] leading-[0.86] text-[#F4EFE4]"
+        style={{ fontVariationSettings: '"wdth" 72', fontWeight: 620 }}
       >
         {raceTitle(round)}
       </h2>
-      <p className="mt-2 font-mono text-xs text-[#F4EFE4]/75">
+      <p className="mt-3 font-mono text-xs tracking-[0.12em] text-[#F4EFE4]/60">
         {formatDate(round.date)} · {racePlace(round)}
       </p>
+      <div className="mt-4 md:hidden">
+        <PodiumBars round={round} drivers={data.drivers} teams={data.teams} />
+        <FastestLapBadge data={data} round={round} />
+      </div>
+    </div>
+  );
+}
+
+function RoundPodium({ round, data }: { round: SeasonRound; data: PaddockData }) {
+  return (
+    <div className="text-center">
       <PodiumBars round={round} drivers={data.drivers} teams={data.teams} />
       <FastestLapBadge data={data} round={round} />
     </div>
@@ -136,18 +144,18 @@ function StandingsCard({ data }: { data: PaddockData }) {
   const height = 132;
 
   return (
-    <div className="max-w-xl">
-      <p className="font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/70">
+    <div className="mx-auto max-w-xl text-center">
+      <p className="font-mono text-[11px] tracking-[0.32em] text-[#F4EFE4]/55">
         THROUGH ROUND {data.standings.throughRound}
       </p>
       <h2
-        className="mt-2 text-[clamp(1.8rem,4.5vw,3.2rem)] leading-[0.92] text-[#F4EFE4]"
-        style={{ fontVariationSettings: '"wdth" 74', fontWeight: 650 }}
+        className="mt-3 text-[clamp(2.2rem,5vw,3.8rem)] leading-[0.86] text-[#F4EFE4]"
+        style={{ fontVariationSettings: '"wdth" 70', fontWeight: 650 }}
       >
         Antonelli, then daylight
       </h2>
       <svg
-        className="mt-4 w-full max-w-[420px]"
+        className="mx-auto mt-6 w-full max-w-[420px]"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label="Cumulative points through nineteen rounds"
@@ -176,11 +184,11 @@ function StandingsCard({ data }: { data: PaddockData }) {
           );
         })}
       </svg>
-      <ol className="mt-3 space-y-1">
+      <ol className="mx-auto mt-5 max-w-md space-y-2 text-left">
         {top.map((driver) => (
           <li key={driver.driverId} className="flex items-center justify-between gap-2">
             <DriverChip driver={driver} teams={data.teams} compact />
-            <span className="font-mono tabular-nums text-[#F4EFE4]">{driver.points}</span>
+            <span className="font-mono text-lg tabular-nums text-[#F4EFE4]">{driver.points}</span>
           </li>
         ))}
       </ol>
@@ -196,15 +204,15 @@ function DriversCard({ data }: { data: PaddockData }) {
   });
 
   return (
-    <div className="max-w-3xl">
-      <p className="font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/70">THE GRID</p>
+    <div className="mx-auto max-w-3xl text-center">
+      <p className="font-mono text-[11px] tracking-[0.32em] text-[#F4EFE4]/55">THE GRID</p>
       <h2
-        className="mt-2 text-[clamp(1.8rem,4.5vw,3.2rem)] leading-[0.92] text-[#F4EFE4]"
-        style={{ fontVariationSettings: '"wdth" 74', fontWeight: 650 }}
+        className="mt-3 text-[clamp(2.2rem,5vw,3.8rem)] leading-[0.86] text-[#F4EFE4]"
+        style={{ fontVariationSettings: '"wdth" 70', fontWeight: 650 }}
       >
         Helmet, number, face
       </h2>
-      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="mt-6 grid max-h-[52vh] grid-cols-1 gap-x-8 gap-y-3 overflow-y-auto text-left sm:grid-cols-2">
         {ordered.map((driver) => (
           <DriverChip key={driver.driverId} driver={driver} teams={data.teams} />
         ))}
@@ -228,9 +236,14 @@ export function Hud({
 }) {
   const snap = useSyncExternalStore(subscribeHud, getHudSnap, getHudSnap);
   const { stop, proximity } = nearestStop(stops, snap.t);
-  const opacity = 0.45 + proximity * 0.55;
+  const opacity = 0.42 + proximity * 0.58;
   const travelRound = activeRound(stops, snap.t);
   const race = travelRound ? data.results.rounds[String(travelRound.round)] ?? null : null;
+  const rows = (race?.results ?? []).slice(0, 10);
+  const left = rows.slice(0, 5);
+  const right = rows.slice(5, 10);
+  const purpleId = race?.fastestLap?.driverId;
+  const showFlanks = stop.kind === "intro" || stop.kind === "round";
 
   const panel = useMemo(() => {
     if (stop.kind === "intro") return <IntroCard circuit={circuit} data={data} />;
@@ -240,14 +253,8 @@ export function Hud({
   }, [stop, circuit, data]);
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-4 pb-16 sm:p-6 sm:pb-16">
-      <div className="flex items-start justify-between gap-4">
-        <div
-          className="pointer-events-auto max-w-[min(100%,42rem)] rounded-sm bg-[#1C2636]/72 p-3 backdrop-blur-[3px] transition-opacity duration-200"
-          style={{ opacity }}
-        >
-          {panel}
-        </div>
+    <div className="pointer-events-none absolute inset-0 z-10">
+      <div className="absolute inset-x-0 top-0 px-4 pt-3 sm:px-6">
         <CircuitTape
           data={data}
           currentId={circuit.circuitId}
@@ -255,20 +262,60 @@ export function Hud({
           loading={circuitLoading}
         />
       </div>
-      <div className="flex items-end justify-between gap-4">
-        <RaceLeaderboard
-          race={race}
-          teams={data.teams}
-          emptyLabel={
-            travelRound?.status === "upcoming"
-              ? "Classification waits until lights-out at this round."
-              : "Scroll the lap to read a race."
-          }
-        />
-        <p className="hidden font-mono text-[11px] text-[#F4EFE4]/55 sm:block">
-          LAP {(snap.t * 100).toFixed(0)}%
-        </p>
+
+      {showFlanks ? (
+        <>
+          <aside className="absolute top-1/2 left-4 hidden w-[17.5rem] -translate-y-1/2 md:block lg:left-7">
+            <ClassificationColumn
+              rows={left}
+              race={race}
+              teams={data.teams}
+              purpleId={purpleId}
+              align="left"
+              label="1–5"
+            />
+          </aside>
+          <aside className="absolute top-1/2 right-4 hidden w-[17.5rem] -translate-y-1/2 md:block lg:right-7">
+            <ClassificationColumn
+              rows={right}
+              race={race}
+              teams={data.teams}
+              purpleId={purpleId}
+              align="right"
+              label="6–10"
+            />
+          </aside>
+        </>
+      ) : null}
+
+      <div
+        className="absolute inset-x-[20%] top-[11%] hidden transition-opacity duration-200 md:block"
+        style={{ opacity }}
+      >
+        {panel}
       </div>
+      <div
+        className="absolute inset-x-4 top-14 transition-opacity duration-200 md:hidden"
+        style={{ opacity }}
+      >
+        {panel}
+      </div>
+      {stop.kind === "round" && stop.round.status === "completed" ? (
+        <div className="absolute inset-x-[22%] bottom-20 hidden justify-center md:flex" style={{ opacity }}>
+          <RoundPodium round={stop.round} data={data} />
+        </div>
+      ) : null}
+
+      {showFlanks ? (
+        <div className="absolute inset-x-4 bottom-16 grid grid-cols-2 gap-3 md:hidden">
+          <ClassificationColumn rows={left} race={race} teams={data.teams} purpleId={purpleId} align="left" />
+          <ClassificationColumn rows={right} race={race} teams={data.teams} purpleId={purpleId} align="right" />
+        </div>
+      ) : null}
+
+      <p className="absolute bottom-12 left-1/2 hidden -translate-x-1/2 font-mono text-[11px] tracking-[0.28em] text-[#F4EFE4]/40 sm:block">
+        LAP {(snap.t * 100).toFixed(0)}
+      </p>
     </div>
   );
 }
@@ -296,8 +343,7 @@ function CircuitTape({
 
   return (
     <div className="pointer-events-auto">
-      <div className="hidden max-h-[62vh] w-56 flex-col overflow-y-auto border-l border-[#F4EFE4]/20 bg-[#1C2636]/78 pl-3 backdrop-blur-sm md:flex">
-        <p className="font-mono text-[10px] tracking-[0.18em] text-[#F4EFE4]/55">CIRCUITS</p>
+      <div className="hidden items-baseline gap-5 overflow-x-auto pb-1 md:flex">
         {items.map((item) => {
           const active = item.id === currentId;
           return (
@@ -305,26 +351,26 @@ function CircuitTape({
               key={item.id}
               type="button"
               onClick={() => onSelect(item.id)}
-              className="mt-2 text-left text-sm leading-5 transition-colors"
-              style={{ color: active ? "#F4EFE4" : "rgba(244,239,228,0.62)" }}
+              className="shrink-0 text-left"
+              style={{ color: active ? "#F4EFE4" : "rgba(244,239,228,0.38)" }}
             >
-              <span className="block" style={{ fontVariationSettings: active ? '"wdth" 110' : '"wdth" 92' }}>
-                {item.title}
-              </span>
-              <span className="block font-mono text-[10px] tracking-[0.08em] text-[#F4EFE4]/50">
-                {item.place}
+              <span
+                className="block font-mono text-[10px] tracking-[0.16em]"
+                style={{ fontVariationSettings: active ? '"wdth" 110' : '"wdth" 90' }}
+              >
+                {item.place.toUpperCase()}
               </span>
             </button>
           );
         })}
-        {loading ? <p className="mt-3 font-mono text-[10px] text-[#F4EFE4]/50">LOADING LINE…</p> : null}
+        {loading ? <p className="font-mono text-[10px] tracking-[0.16em] text-[#F4EFE4]/40">LINE…</p> : null}
       </div>
-      <div className="md:hidden">
+      <div className="flex justify-end md:hidden">
         <Sheet>
           <SheetTrigger
             nativeButton={false}
             render={
-              <Button variant="outline" className="border-[#F4EFE4]/25 bg-[#1C2636]/70 text-[#F4EFE4]">
+              <Button variant="outline" className="border-[#F4EFE4]/20 bg-transparent text-[#F4EFE4]">
                 Circuits
               </Button>
             }

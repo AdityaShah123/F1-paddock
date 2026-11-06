@@ -78,9 +78,9 @@ export function Experience() {
   useEffect(() => {
     if (phase !== "drive" || reducedMotion) return;
     const lenis = new Lenis({
-      lerp: mobile ? 0.12 : 0.078,
-      wheelMultiplier: 0.82,
-      touchMultiplier: 1.05,
+      lerp: mobile ? 0.14 : 0.1,
+      wheelMultiplier: mobile ? 1.05 : 1.28,
+      touchMultiplier: 1.2,
       autoRaf: false,
     });
     let frame = 0;
