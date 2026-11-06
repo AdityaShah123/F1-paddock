@@ -1,0 +1,1187 @@
+# Figma
+
+A collaborative interface design tool.
+
+- Category: images & design
+- Auth: OAUTH2, API_KEY
+- Composio-managed OAuth available? Yes
+- Tools: 53
+- Triggers: 0
+- Slug: `FIGMA`
+- Version: 20261101_00
+
+## Frequently Asked Questions
+
+### Why can `FIGMA_EXTRACT_DESIGN_TOKENS` fail when `include_variables` is enabled?
+
+When `include_variables` is enabled, the tool calls Figma's local variables endpoint and the connected account must have the `file_variables:read` scope. If Figma returns a 403 saying the endpoint requires `file_variables:read`, reconnect with Figma credentials that can grant that scope. Figma exposes this scope only for Enterprise organization members.
+
+If you do not need Figma variables, set `include_variables` to `false`. The tool can still extract tokens from local styles and nodes without calling the variables endpoint.
+
+### What can cause Figma 429s?
+
+A 429 means Figma rate limited the request. Confirm the response is coming from Figma, reduce request volume, add backoff, and retry after the provider limit resets.
+
+Default Figma auth is useful for quick testing. For production traffic, use your own Figma credentials so your app controls its scopes, traffic pattern, and rate-limit exposure.
+
+## Tools
+
+### Add a comment to a file
+
+Slug: `FIGMA_ADD_A_COMMENT_TO_A_FILE`
+
+Posts a new comment to a Figma file or branch, optionally replying to an existing root comment (replies cannot be nested); `region_height` and `region_width` in `client_meta` must be positive if defining a comment region.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | string | Yes | Text content of the comment. |
+| `file_key` | string | Yes | Figma file key or branch key. Extract from the file URL: https://www.figma.com/design/FILE_KEY/... or https://www.figma.com/file/FILE_KEY/... The FILE_KEY is the alphanumeric string between 'design/' or 'file/' and the next slash. You must have access to the file (editor or commenter permissions required to add comments). For branch keys, use GET /v1/files/:key with branch_data parameter. |
+| `comment_id` | string | No | ID of an existing root comment to reply to. Replies cannot be made to other replies. |
+| `client_meta` | object | No | Dictionary specifying the comment's position. Valid formats: 1) Absolute coordinates: {x, y} 2) Node-relative: {node_id, node_offset: {x, y}} (when node_id is used, coordinates MUST be inside node_offset) 3) Absolute region: {x, y, region_height, region_width, comment_pin_corner?} 4) Node-relative region: {node_id, node_offset: {x, y}, region_height, region_width, comment_pin_corner?}. While technically optional, providing this parameter is strongly recommended to properly position the comment in the file. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Add a reaction to a comment
+
+Slug: `FIGMA_ADD_A_REACTION_TO_A_COMMENT`
+
+Posts a specified emoji reaction to an existing comment in a Figma file or branch, requiring valid file_key and comment_id.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `emoji` | string | Yes | The emoji to use for the reaction, specified as a shortcode (e.g., `:heart:`, `:+1::skin-tone-2:`). For a comprehensive list of accepted emoji shortcodes, including aliases and skin tone modifiers, refer to the file linked here: https://raw.githubusercontent.com/missive/emoji-mart/main/packages/emoji-mart-data/sets/14/native.json. |
+| `file_key` | string | Yes | Identifier of the Figma file or branch to which the comment reaction will be posted. This can be a file key (e.g., from the file URL) or a branch key. Use the `GET /v1/files/:key` endpoint with the `branch_data=true` query parameter to obtain the branch key if needed. |
+| `comment_id` | string | Yes | The unique identifier of the comment to which the reaction should be added. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Create a webhook
+
+Slug: `FIGMA_CREATE_A_WEBHOOK`
+
+Creates a Figma webhook for team, project, or file events, sending POST notifications to the configured endpoint. Team webhooks require team admin permissions; project and file webhooks require edit access.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `status` | string ("ACTIVE" | "PAUSED") | No |
+| `context` | string ("team" | "project" | "file") |
+| `team_id` | string | No | DEPRECATED: Use `context='team'` with `context_id` instead. Identifier of the Figma team for which this webhook monitors events. To find your team_id: navigate to your team page in Figma (https://www.figma.com/files/team/YOUR_TEAM_ID/Team-Name), the team_id is the number after '/team/' in the URL. Note: team_ids cannot be discovered programmatically via the API. |
+| `endpoint` | string | Yes | Publicly accessible HTTPS URL (max 2048 chars) that receives POST requests from Figma when the event triggers. Must be reachable from the internet. Figma sends JSON payloads with event details to this endpoint. |
+| `passcode` | string | Yes | Secret string (max 100 chars) included in the webhook payload for verification. Use this to verify that incoming requests to your endpoint are genuinely from Figma. |
+| `context_id` | string | No | ID of the context (team, project, or file) to monitor. For team: extract from URL https://www.figma.com/files/team/TEAM_ID/... For project: extract from URL or use FIGMA_GET_PROJECTS_IN_A_TEAM. For file: use the file_key from URL https://www.figma.com/design/FILE_KEY/... Required when `context` is specified. |
+| `event_type` | string ("FILE_COMMENT" | "FILE_DELETE" | "FILE_UPDATE" |
+| `description` | string | No | Optional human-readable description for the webhook (max 150 chars). Useful for identifying the webhook's purpose in the team's webhook list. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Create dev resources
+
+Slug: `FIGMA_CREATE_DEV_RESOURCES`
+
+Creates and attaches multiple uniquely-URLed development resources to specified Figma nodes, up to 10 per node.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `dev_resources` | array | Yes | List of development resources to create. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Create, modify, or delete variables
+
+Slug: `FIGMA_CREATE_MODIFY_DELETE_VARIABLES`
+
+Manages variables, collections, modes, and their values in a Figma file via batch create/update/delete operations; use temporary IDs to link new related items in one request and ensure `variableModeValues` match the target variable's `resolvedType`.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | The key of the Figma file or branch to modify variables in. Use `GET /v1/files/:key` with the `branch_data=true` query parameter to obtain a branch key. |
+| `variables` | array | No | List of operations for variables. Each item specifies an action (CREATE, UPDATE, DELETE) and the relevant fields. Maximum 5000 variables per collection. Variables cannot be created in extended collections. |
+| `variableModes` | array | No | List of operations for modes. Each item specifies an action (CREATE, UPDATE, DELETE) and the relevant fields. Maximum 40 modes per collection. Modes cannot be created/updated in extended collections (only deleted if parent mode was deleted). |
+| `variableModeValues` | array | No | List of value assignments for variables in specific modes. Each item sets the value of a variable in a particular mode. Values must match the variable's resolvedType. |
+| `variableCollections` | array | No | List of operations for variable collections. Each item specifies an action (CREATE, UPDATE, DELETE) and the relevant fields for that action. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Delete a comment
+
+Slug: `FIGMA_DELETE_A_COMMENT`
+
+Deletes a specific comment from a Figma file or branch, provided the authenticated user is the original author of the comment.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | The key of the Figma file or branch from which the comment will be deleted. This can be a file key (typically found in the file's URL, e.g., 'sFHgQh9dL6369o5wrZHmdR' from https://www.figma.com/design/sFHgQh9dL6369o5wrZHmdR/...) or a branch key. To obtain a branch key, use the `GET /v1/files/:key` endpoint with the `branch_data` query parameter. |
+| `comment_id` | string | Yes | The unique string identifier of the comment to be deleted. This ID can be obtained from the response of `GET /v1/files/:file_key/comments` or from the response when creating a comment with `POST /v1/files/:file_key/comments`. Only the author of the comment can delete it. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Delete a reaction
+
+Slug: `FIGMA_DELETE_A_REACTION`
+
+Deletes a specific emoji reaction from a comment in a Figma file; the user must have originally created the reaction.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `emoji` | string | Yes | The specific emoji character (e.g., '❤️', '👍') of the reaction to delete. This must be an exact match to the emoji of an existing reaction on the comment. |
+| `file_key` | string | Yes | Key of the file or branch containing the comment reaction to be deleted. The file key can be obtained from the file URL or API responses. To get a branch key, use the `GET /v1/files/:key` endpoint with the `branch_data` query parameter. |
+| `comment_id` | string | Yes | Identifier of the comment from which the reaction will be removed. This ID is specific to the comment within the Figma file. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Delete a webhook
+
+Slug: `FIGMA_DELETE_A_WEBHOOK`
+
+Permanently deletes an existing webhook, identified by its unique `webhook_id`; this operation is irreversible.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `webhook_id` | string | Yes | The unique identifier of the webhook to be deleted. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Delete dev resource
+
+Slug: `FIGMA_DELETE_DEV_RESOURCE`
+
+Deletes a development resource (used to link Figma design elements to external developer information like code or tasks) from a specified Figma file.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | Identifier of the Figma file from which to delete the dev resource. Must be a main file key, not a branch key. |
+| `dev_resource_id` | string | Yes | Identifier of the dev resource to delete from the file. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Design tokens to tailwind
+
+Slug: `FIGMA_DESIGN_TOKENS_TO_TAILWIND`
+
+Converts design tokens into Tailwind CSS configuration content with theme extensions, and optionally generates global CSS with font imports.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `prefix` | string | No | Prefix for generated token names (e.g., 'brand-') |
+| `tokens` | object | Yes | Design tokens object obtained from the FIGMA_EXTRACT_DESIGN_TOKENS action output. Contains colors, typography, spacing, border_radius, shadows, total_tokens, and sources. |
+| `config_format` | string | No | Output format: 'ts' for TypeScript or 'js' for JavaScript |
+| `include_font_imports` | boolean | No | Include @import statements for Google Fonts |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Detect Background Layers
+
+Slug: `FIGMA_DETECT_BACKGROUND`
+
+Detect background layers for selected nodes in a Figma file. This action analyzes the Figma document structure and identifies potential background elements for the given target nodes. It uses: - Geometric analysis (bounding box overlap/containment) - Z-index ordering (nodes earlier in the layer stack are behind later ones) - Visual properties (fills, node types) - Naming conventions (nodes named 'background', 'bg', etc.) Returns background candidates with confidence scores (0-1) and explanations.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | File key extracted from a Figma Design file URL. Example: 'abc123XYZ' from URL figma.com/design/abc123XYZ/My-Design. NOT supported: FigJam boards or Slides. |
+| `search_depth` | integer | No | How many levels up in the node hierarchy to search for backgrounds. Higher values find more distant ancestors but take longer. Default: 3. |
+| `target_node_ids` | array | Yes | List of node IDs to find background layers for. Node IDs can be found in Figma URLs after 'node-id=' parameter, e.g., '1:2' or '123:456'. The action will search for potential background elements that are behind these target nodes. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Discover Figma Resources
+
+Slug: `FIGMA_DISCOVER_FIGMA_RESOURCES`
+
+Discovers Figma identifiers from supported file, design, board, prototype, slides, team and project URLs, and can list team projects, project files or file nodes. Project and file listing failures may appear as empty results.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `team_id` | string | No | Team ID to list all projects from. Get this from team URL: https://www.figma.com/files/team/YOUR_TEAM_ID/Team-Name. Returns list of projects with IDs and names. Cannot be inferred from user identity or FIGMA_GET_CURRENT_USER; must come from a team URL or be provided directly. |
+| `file_key` | string | No | File key to extract all node IDs from. Get this from file URL (figma.com/file/FILE_KEY/...) or from project files list. Returns hierarchical list of all nodes with IDs, names, types, and paths. |
+| `figma_url` | string | No | Full Figma URL to extract file_key, node_id, and team_id from. Works with any Figma URL format: • File: https://www.figma.com/file/ABC123/Design-Name • Design: https://www.figma.com/design/ABC123/Design-Name • Board: https://www.figma.com/board/ABC123/Board-Name • Prototype: https://www.figma.com/proto/ABC123/Prototype-Name • Slides: https://www.figma.com/slides/ABC123/Slide-Name • With node: https://www.figma.com/file/ABC123/Design?node-id=123:456 • Team: https://www.figma.com/files/team/123456/Team-Name This is the easiest way to get all IDs you need! Node IDs in URLs use hyphens (123-456) but Figma JSON uses colons (123:456) — convert format when passing to other tools. If extracted_ids.file_key returns null, parse it manually from the path segment after /file/, /design/, /board/, /proto/, or /slides/. |
+| `max_depth` | integer | No | Maximum tree depth to traverse when discovering nodes. 2=pages+frames, 3=pages+frames+components, etc. Higher values find more nodes but take longer. Responses at depth 4+ or broad file_key traversal can exceed 20k tokens with significant latency; cap at 2–3 and target specific CANVAS or FRAME node IDs to limit response size. |
+| `project_id` | string | No | Project ID to list all files from. Get this from project URL or from team projects list. Returns files with keys, names, and thumbnails. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Download Figma Images
+
+Slug: `FIGMA_DOWNLOAD_FIGMA_IMAGES`
+
+Download images from Figma file nodes. Renders specified nodes as images and downloads them. Supports PNG, SVG, JPG, and PDF formats. REQUIRED PARAMETERS: - file_key (string): The Figma file key from the URL - images (array): List of objects, each containing: - node_id (string, required): The node ID to export (e.g., "1:2") - file_name (string, required): Output filename with extension (e.g., "logo.png") - format (string, optional): One of 'png', 'svg', 'jpg', 'pdf'. Defaults to 'png' Example usage: { "file_key": "abc123XYZ", "images": [ {"node_id": "1:2", "file_name": "logo.png", "format": "png"} ] } To find node IDs, use FIGMA_GET_FILE_JSON or look in Figma URLs after 'node-id='. NOTE: Returned image URLs expire shortly after generation — download them immediately.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `scale` | number | No | Image scaling factor for PNG/JPG exports (0.01 to 4). Default is 2 for retina quality. Ignored for SVG/PDF. Exports are capped at ~32 megapixels; reduce scale or split large nodes to avoid hitting this limit. |
+| `images` | array | Yes | REQUIRED. A list of image download requests. Each item must be an object with 'node_id' (string, required), 'file_name' (string, required), and optionally 'format' (string, defaults to 'png'). Example: [{"node_id": "1:2", "file_name": "logo.png"}] |
+| `file_key` | string | Yes | REQUIRED. The Figma file key extracted from a Figma URL. For URL 'https://www.figma.com/file/abc123XYZ/MyDesign', the file_key is 'abc123XYZ'. This identifies which Figma file to download images from. |
+| `svg_include_id` | boolean | No | For SVG exports only: include element IDs in the SVG output. Defaults to false. |
+| `svg_outline_text` | boolean | No | For SVG exports only: convert text to paths for accurate rendering. Defaults to true. |
+| `svg_simplify_stroke` | boolean | No | For SVG exports only: simplify strokes for cleaner SVG output. Defaults to true. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Extract design tokens
+
+Slug: `FIGMA_EXTRACT_DESIGN_TOKENS`
+
+Extracts design tokens from a Figma file using styles, optional variables and node properties. Results may be incomplete or use fallback style values; variables require appropriate access and a supported plan.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | The Figma file key (e.g., 'aA1b2Cd3E4F5g6H7i8J9k0L'). Extract from Figma URLs like figma.com/file/FILE_KEY/... or use FIGMA_DISCOVER_FIGMA_RESOURCES to find file keys |
+| `include_variables` | boolean | No | Include variables in extraction. Even with this enabled, modes and scopes may be incomplete; use FIGMA_GET_LOCAL_VARIABLES for full semantic token coverage including variable modes and aliases. |
+| `extract_from_nodes` | boolean | No | Extract tokens from node properties |
+| `include_local_styles` | boolean | No | Include local styles in extraction |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Extract Prototype Interactions
+
+Slug: `FIGMA_EXTRACT_PROTOTYPE_INTERACTIONS`
+
+Extract prototype interactions and animations from Figma files. Required parameter: - file_key: The Figma file key extracted from a URL like 'https://www.figma.com/file/ABC123xyz/MyFile' (the 'ABC123xyz' part) Analyzes the prototype data to extract: - User interactions (clicks, hovers, etc.) - Transition animations - Component variant states - User flows and navigation
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | Required. The unique file key from a Figma URL. To find it: from a URL like 'https://www.figma.com/file/ABC123xyz/MyFileName' or 'https://www.figma.com/design/ABC123xyz/MyFileName', extract the alphanumeric string after '/file/' or '/design/' (e.g., 'ABC123xyz'). This is typically 22 alphanumeric characters. |
+| `analyze_components` | boolean | No | Extract component variant states |
+| `include_animations` | boolean | No | Include detailed animation data |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get activity logs
+
+Slug: `FIGMA_GET_ACTIVITY_LOGS`
+
+Retrieves Figma organization activity log events with event-type and time-range filters, ordering, and a page-size limit. Access requires an OAuth app and an Enterprise organization admin with the activity log scope.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `limit` | integer | No | Maximum number of events per response, for pagination. If unspecified, defaults to 1000. |
+| `order` | string ("asc" | "desc") | No |
+| `events` | string | No | Comma-separated event types to include. If unspecified, all event types are returned. Refer to Figma's API documentation for a comprehensive list. |
+| `end_time` | integer | No | Unix timestamp for the latest time for events. If unspecified, defaults to the current timestamp. |
+| `start_time` | integer | No | Unix timestamp for the earliest time for events. If unspecified, defaults to one year ago. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get a webhook
+
+Slug: `FIGMA_GET_A_WEBHOOK`
+
+Retrieves detailed information about a specific webhook by its ID, provided the webhook exists and is accessible to the user.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `webhook_id` | string | Yes | The unique identifier of the webhook to retrieve. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get comments in a file
+
+Slug: `FIGMA_GET_COMMENTS_IN_A_FILE`
+
+Retrieves all comments from an existing Figma file, identified by a valid `file_key`, returning details like content, author, position, and reactions, with an option for Markdown formatted content.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `as_md` | boolean | No | If true, comment content will be returned in Markdown format where applicable (e.g., for links, bold text). Defaults to false, returning rich text structure. |
+| `file_key` | string | Yes | Identifier for the Figma file from which to retrieve comments. This can be a file key (a unique string identifying a file) or a branch key. To obtain a branch key, use the `GET /v1/files/:key` endpoint with the `branch_data` query parameter. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get component (Deprecated)
+
+Slug: `FIGMA_GET_COMPONENT`
+
+DEPRECATED: Use FIGMA_GET_FILE_NODES instead. Get component data with automatic simplification. Returns clean, AI-friendly component structure.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `node_id` | string | Yes | ID of the component node. Must be a component node ID specifically (not a frame or page ID); pass verbatim from sources like FIGMA_GET_FILE_COMPONENTS. |
+| `file_key` | string | Yes | File key that contains the component |
+| `response_detail` | string ("minimal" | "full") | No |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get component
+
+Slug: `FIGMA_GET_COMPONENT2`
+
+Fetches metadata for a specific component using its unique identifier. Use when you need to retrieve published component details from a team library.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `key` | string | Yes | The unique identifier of the component. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get component set
+
+Slug: `FIGMA_GET_COMPONENT_SET`
+
+Retrieves detailed metadata for a specific published Figma component set using its unique `key`.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `key` | string | Yes | The unique identifier of the component set. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get current user
+
+Slug: `FIGMA_GET_CURRENT_USER`
+
+Retrieves detailed information for the currently authenticated Figma user.
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get dev resources
+
+Slug: `FIGMA_GET_DEV_RESOURCES`
+
+Retrieves development resources (e.g., Jira/GitHub links) for a Figma main file, optionally filtering by specific node IDs.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | The unique identifier of the Figma design file from which to retrieve development resources. This must be the key for a main file, not a branch key. Extract the file_key from Figma URLs: figma.com/design/{file_key}/... or figma.com/file/{file_key}/... |
+| `node_ids` | string | No | A comma-separated string of node IDs to filter dev resources. Example: '1:2,100:54'. If omitted, returns all dev resources in the file. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get file components
+
+Slug: `FIGMA_GET_FILE_COMPONENTS`
+
+Retrieves published components from a Figma file, which must be a main file (not a branch) acting as a library.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | Key of the Figma file. This file must be a main file (not a branch key) that acts as a library, as components are published from main files. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get file component sets
+
+Slug: `FIGMA_GET_FILE_COMPONENT_SETS`
+
+Retrieves all published component sets from the specified Figma main file (file_key must not be for a branch).
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | Key of the Figma file. Must be a main file key (not a branch key) as component sets are published from main files. Extract from Figma URL: https://www.figma.com/design/{file_key}/... or https://www.figma.com/file/{file_key}/... |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get file json
+
+Slug: `FIGMA_GET_FILE_JSON`
+
+Retrieves data for a Figma Design file or selected nodes, with options to specify a version and limit tree depth. By default it returns a simplified view that omits invisible nodes and empty values; choose full detail for the raw Figma response. Use node IDs and depth to reduce response size for large files.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `ids` | string | No | Comma-separated node IDs to fetch specific nodes (uses /nodes endpoint). Node IDs can be extracted from Figma URLs: figma.com/design/{file_key}/{name}?node-id={node_id}. Example: '1:2,1:3' for multiple nodes. Must be a string, not an array — passing an array causes validation failure. URL node IDs use hyphens (e.g., '1-2'); convert to colons (e.g., '1:2') before passing here. |
+| `depth` | integer | No | Tree traversal depth (e.g., 2 for pages and top-level children). Omitting depth on large files can produce extremely large responses or timeouts; scope with `ids` and set depth to the minimum needed. |
+| `version` | string | No | Specific version ID; current version if omitted |
+| `file_key` | string | Yes | File key extracted from a Figma Design file URL. SUPPORTED: figma.com/design/{file_key}/... or figma.com/file/{file_key}/... NOT SUPPORTED: FigJam boards (figma.com/board/{file_key}) and Slides (figma.com/slides/{file_key}). Example valid key: 'abc123XYZ' from URL figma.com/design/abc123XYZ/My-Design. |
+| `geometry` | string | No | Set to "paths" to include vector data |
+| `branch_data` | boolean | No | Include branch metadata |
+| `plugin_data` | string | No | Comma-separated plugin IDs to include plugin data |
+| `response_detail` | string ("minimal" | "full") | No |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get file metadata
+
+Slug: `FIGMA_GET_FILE_METADATA`
+
+Get Figma file metadata including name, creator, last modification details, thumbnail, and access information. Use when you need quick file overview without the full document tree.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | File key to get metadata for. This can be a file key or branch key. Extract from file URL: https://www.figma.com/design/{file_key}/... or https://www.figma.com/file/{file_key}/... Use `GET /v1/files/:key` with the `branch_data` query param to get the branch key. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get file nodes
+
+Slug: `FIGMA_GET_FILE_NODES`
+
+Fetch JSON for specific node IDs from a Figma file to avoid full-file payload limits. Use when you already know target node IDs (from shallow file fetch or component listings) or when full-file JSON has hit payload limits. Prefer depth=1 for fast discovery.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `ids` | string | Yes | Node IDs to retrieve. Provide as comma-separated string (e.g., '1:5,1:6') or as list of strings (e.g., ['1:5', '1:6']). Use this when you already know target node IDs from a shallow file fetch or component/style listings. |
+| `depth` | integer | No | How deep into each requested node subtree to traverse. Use depth=1 for fast structure discovery (only immediate children), increase only when needed. Omit to get full subtree. |
+| `version` | string | No | Specific version ID to retrieve. Omit for current version. |
+| `file_key` | string | Yes | Figma file key or branch key extracted from URL. Example: 'abc123XYZ' from figma.com/design/abc123XYZ/My-Design. |
+| `geometry` | string | No | Set to 'paths' to include vector path data in the response. Omit for standard node data without geometry. |
+| `plugin_data` | string | No | Plugin IDs (comma-separated) or 'shared' to include plugin data. Omit to exclude plugin data. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get files in a project
+
+Slug: `FIGMA_GET_FILES_IN_A_PROJECT`
+
+Lists files in a Figma project, optionally including metadata for branches of main files. DEPRECATED: Figma recommends the folders endpoint GET /v2/folders/:folder_id/files instead; existing integrations are unaffected.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `project_id` | string | Yes | Identifier of the Figma project, typically found in its URL. |
+| `branch_data` | boolean | No | If true, includes metadata for branches of main files. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get file styles
+
+Slug: `FIGMA_GET_FILE_STYLES`
+
+Retrieves a list of published styles (like colors, text attributes, effects, and layout grids) from a specified main Figma file (not a branch).
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | Key of the main Figma file (not a branch) from which to retrieve published styles. Extract the file_key from the Figma URL: figma.com/design/{file_key}/... or figma.com/file/{file_key}/... Note: This endpoint only returns PUBLISHED styles from team libraries. For local/unpublished styles, use FIGMA_GET_FILE_JSON instead. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get image fills
+
+Slug: `FIGMA_GET_IMAGE_FILLS`
+
+Retrieves temporary (14-day expiry) download URLs for all image fills in a Figma file; requires `imageRef` from `Paint` objects to map URLs.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | The unique identifier of a Figma file. Extract this from Figma URLs: https://www.figma.com/file/{file_key}/... or https://www.figma.com/design/{file_key}/... The file_key is a 22-character alphanumeric string (e.g., 'sFHgQh9dL6369o5wrZHmdR'). |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get library analytics component action data
+
+Slug: `FIGMA_GET_LIBRARY_ANALYTICS_COMPONENT_ACTION_DATA`
+
+Retrieves component insertion and detachment analytics for a specified Figma library, groupable by 'component' or 'team' and filterable by a date range (YYYY-MM-DD).
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cursor` | string | No | Opaque cursor for pagination, from a previous response's `cursor` field; omit for the first page. |
+| `end_date` | string | No | End date (YYYY-MM-DD) for analytics. Data includes up to end of this date's week. Defaults to latest computed week. |
+| `file_key` | string | Yes | Unique identifier (key) of the Figma library file to retrieve analytics data from. Must be a published library file from an Enterprise plan organization. |
+| `group_by` | string ("component" | "team") | Yes |
+| `start_date` | string | No | Start date (YYYY-MM-DD) for analytics. Data includes from start of this date's week. Defaults to one year prior. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get library analytics component usage data
+
+Slug: `FIGMA_GET_LIBRARY_ANALYTICS_COMPONENT_USAGE_DATA`
+
+Retrieves component usage analytics for a specified Figma library file (identified by `file_key`), with data groupable by 'component' or 'file'.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cursor` | string | No | Opaque string for pagination to fetch the next page of data, obtained from a previous response. |
+| `file_key` | string | Yes | Unique identifier (key) of the Figma library file. Must be a published library file from an Enterprise plan organization. |
+| `group_by` | string ("component" | "file") | Yes |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get library analytics style action data
+
+Slug: `FIGMA_GET_LIBRARY_ANALYTICS_STYLE_ACTION_DATA`
+
+Retrieves style usage analytics (insertions, detachments) for a Figma library, grouped by 'style' or 'team'; if providing a date range, ensure end_date is not before start_date.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cursor` | string | No | Opaque cursor for pagination, from a previous response's `cursor` field to fetch the next page; omit for first page. |
+| `end_date` | string | No | End date for the analytics data range (YYYY-MM-DD). Data includes up to the end of this date's week. Defaults to the most recently computed week if unspecified. |
+| `file_key` | string | Yes | Unique identifier (key) of the Figma library. Must be a published library file from an Enterprise plan organization. |
+| `group_by` | string ("style" | "team") | Yes |
+| `start_date` | string | No | Start date for the analytics data range (YYYY-MM-DD). Data includes from the start of this date's week. Defaults to one year prior if unspecified. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get library analytics style usage data
+
+Slug: `FIGMA_GET_LIBRARY_ANALYTICS_STYLE_USAGE_DATA`
+
+Retrieves style usage analytics for a published Figma library. Returns data about how styles (colors, text styles, effects, grids) from the library are being used across your organization. Requires Enterprise plan and library_analytics:read scope. Group results by 'style' to see per-style metrics or by 'file' to see which files use the library's styles.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cursor` | string | No | Pagination cursor from a previous response's 'cursor' field. Omit to get the first page of results. |
+| `file_key` | string | Yes | The unique file key of a published Figma library. Obtain this from the library URL (e.g., figma.com/file/FILE_KEY/...) or via the Get Team Styles endpoint. Note: This API is only available on Enterprise plans. |
+| `group_by` | string ("file" | "style") | Yes |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get library analytics variable action data
+
+Slug: `FIGMA_GET_LIBRARY_ANALYTICS_VARIABLE_ACTION_DATA`
+
+Retrieves weekly, paginated analytics data on variable insertions and detachments for a specified Figma library (identified by `file_key`), groupable by 'variable' or 'team', and filterable by an optional date range. Note: Requires Enterprise plan and library_analytics:read scope.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cursor` | string | No | Opaque cursor for pagination from a previous response; omit or use null for the first page. |
+| `end_date` | string | No | End date (YYYY-MM-DD) for the analytics range. Data is aggregated weekly; this date rounds to the nearest week end. Defaults to the latest computed week if unspecified. |
+| `file_key` | string | Yes | Unique identifier (key) of the Figma file (library) for which to retrieve variable analytics data. |
+| `group_by` | string ("team" | "variable") | Yes |
+| `start_date` | string | No | Start date (YYYY-MM-DD) for the analytics range. Data is aggregated weekly; this date rounds to the nearest week start. Defaults to one year prior if unspecified. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get library analytics variable usage data
+
+Slug: `FIGMA_GET_LIBRARY_ANALYTICS_VARIABLE_USAGE_DATA`
+
+Retrieves paginated analytics data on variable usage from a specified Figma library, grouped by 'file' or 'variable', for libraries with enabled analytics.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cursor` | string | No | Opaque cursor for pagination, from a previous response's `cursor` field if `next_page` was true. Omit for the first page. |
+| `file_key` | string | Yes | Key of the Figma library file (from its URL) for which to retrieve variable usage analytics. Must be a published library from an Enterprise plan organization. |
+| `group_by` | string ("file" | "variable") | Yes |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get local variables
+
+Slug: `FIGMA_GET_LOCAL_VARIABLES`
+
+Retrieves all local/remote variables for a Figma file/branch; crucial for obtaining mode-specific values which `/v1/files/{file_key}/variables/published` omits.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | Key of the Figma file or branch. Can be a standard file key or a branch-specific key (to obtain a branch key, use `GET /v1/files/:key` with the `branch_data` query parameter). |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get payments
+
+Slug: `FIGMA_GET_PAYMENTS`
+
+Retrieves a user's payment information for a Figma plugin, widget, or Community file; the authenticated identity must own the resource.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `user_id` | integer | No | ID of the user whose payment information is sought. Obtain via OAuth2 with Figma REST API. Required if `plugin_payment_token` is not provided. |
+| `plugin_id` | integer | No | ID of the plugin. Obtain from its manifest or Community page URL (number after 'plugin/'). If `user_id` is provided, specify exactly one of `community_file_id`, `plugin_id`, or `widget_id`. |
+| `widget_id` | integer | No | ID of the widget. Obtain from its manifest or Community page URL (number after 'widget/'). If `user_id` is provided, specify exactly one of `community_file_id`, `plugin_id`, or `widget_id`. |
+| `community_file_id` | integer | No | ID of the Community file. Obtain from its Community page URL (number after 'file/'). If `user_id` is provided, specify exactly one of `community_file_id`, `plugin_id`, or `widget_id`. |
+| `plugin_payment_token` | string | No | Short-lived auth token from `getPluginPaymentTokenAsync` (Figma Plugin Payments API). See Figma docs 'Calling the Payments REST API...'. If provided, `user_id` and resource IDs are typically not needed. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get projects in a team
+
+Slug: `FIGMA_GET_PROJECTS_IN_A_TEAM`
+
+Retrieves projects (folders) visible to the authenticated user in a specified Figma team. On plans with nested folders enabled, results include only top-level folders.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `team_id` | string | Yes | Identifier of the Figma team from which to list projects. Note: The `team_id` cannot be programmatically obtained solely from a user token. To find a `team_id`, navigate to a team page you are a member of in Figma. The `team_id` will be present in the URL, typically formatted as `https://www.figma.com/files/team/YOUR_TEAM_ID/Your_Team_Name`. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get published variables
+
+Slug: `FIGMA_GET_PUBLISHED_VARIABLES`
+
+Retrieves variables published from a specified Figma file; this API is available only to full members of Enterprise organizations.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `file_key` | string | Yes | The key of the Figma file from which to retrieve published variables. This must be a main file's key, not a branch key, as publishing from branches is not supported. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get reactions for a comment
+
+Slug: `FIGMA_GET_REACTIONS_FOR_A_COMMENT`
+
+Retrieves reactions for a specific comment in a Figma file.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cursor` | string | No | Pagination cursor from `next_page` of a previous response. Omit or use null for the first page. |
+| `file_key` | string | Yes | Key for the Figma file or branch. Can be a file key (from URL) or a branch key. To get a branch key, use `GET /v1/files/:key` with the `branch_data` query parameter. |
+| `comment_id` | string | Yes | Identifier of the comment. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get SCIM service provider config
+
+Slug: `FIGMA_GET_SCIM_SERVICE_PROVIDER_CONFIG`
+
+Get Figma's SCIM service provider configuration. Returns configuration details including which SCIM operations are supported (patch, bulk, filter, etc.), authentication schemes, and service capabilities.
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get style
+
+Slug: `FIGMA_GET_STYLE`
+
+Retrieves detailed metadata for a specific style in Figma using its unique style key.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `key` | string | Yes | The unique identifier (key) of the style to retrieve. Style keys are 40-character hexadecimal hash strings obtained from the GET /v1/files/{file_key}/styles or GET /v1/teams/{team_id}/styles endpoints. This endpoint only works for styles published in a team library. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get team components
+
+Slug: `FIGMA_GET_TEAM_COMPONENTS`
+
+Retrieves components published in a specific Figma team's library; the team must have published components, otherwise an empty list is returned.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `after` | integer | No | Opaque cursor indicating the point after which to retrieve components. Used for pagination. Exclusive with the `before` parameter. The cursor value is an internally tracked integer that doesn't correspond to any specific Figma IDs. |
+| `before` | integer | No | Opaque cursor indicating the point before which to retrieve components. Used for pagination. Exclusive with the `after` parameter. The cursor value is an internally tracked integer that doesn't correspond to any specific Figma IDs. |
+| `team_id` | string | Yes | The unique identifier of the Figma team from which to retrieve published components. IMPORTANT: Team IDs cannot be obtained programmatically via the Figma API. To find your team_id: navigate to your team page in the Figma web app (https://www.figma.com/files/team/YOUR_TEAM_ID/Team-Name), the team_id is the numeric string after '/team/' in the URL. |
+| `page_size` | integer | No | Number of components to return per page. Maximum value is 1000. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get team component sets
+
+Slug: `FIGMA_GET_TEAM_COMPONENT_SETS`
+
+Retrieves a paginated list of published component sets (collections of reusable UI elements) from a specified Figma team's library.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `after` | integer | No | Cursor for pagination, indicating the point after which to retrieve component sets. Exclusive with the 'before' parameter. The cursor value is an internally tracked integer and does not correspond to any specific Figma IDs. |
+| `before` | integer | No | Cursor for pagination, indicating the point before which to retrieve component sets. Exclusive with the 'after' parameter. The cursor value is an internally tracked integer and does not correspond to any specific Figma IDs. |
+| `team_id` | string | Yes | The unique identifier of the Figma team from which to list component sets. IMPORTANT: Team IDs cannot be obtained programmatically via the Figma API. To find your team_id: navigate to your team page in the Figma web app (https://www.figma.com/files/team/YOUR_TEAM_ID/Team-Name), the team_id is the numeric string after '/team/' in the URL. |
+| `page_size` | integer | No | Number of component sets to return in a single page. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get team styles
+
+Slug: `FIGMA_GET_TEAM_STYLES`
+
+Retrieves a paginated list of published styles (fill colors, text styles, effects, grids) from a specified Figma team's library. Note: The team must have published styles in its library for this endpoint to return data. Teams without published styles will return an empty list.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `after` | integer | No | Opaque integer cursor to retrieve styles after this point; use `cursor.after` from a previous response. Mutually exclusive with `before` - only one can be specified. |
+| `before` | integer | No | Opaque integer cursor to retrieve styles before this point; use `cursor.before` from a previous response. Mutually exclusive with `after` - only one can be specified. |
+| `team_id` | string | Yes | Identifier of the Figma team to retrieve published styles from. Note: The team_id cannot be obtained programmatically via the API. To find a team_id, navigate to the team page in Figma (https://www.figma.com/files/team/YOUR_TEAM_ID/Team-Name) and extract the numeric ID from the URL. |
+| `page_size` | integer | No | Number of style items to return per page. Maximum supported value is 100. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get webhooks
+
+Slug: `FIGMA_GET_TEAM_WEBHOOKS`
+
+Retrieves webhooks registered for a specified Figma team, project, or file context using the Webhooks V2 API.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `context` | string ("team" | "project" | "file") |
+| `context_id` | string | Yes | The ID of the context to query webhooks for. For 'team' context, this is the team_id. For 'project' context, this is the project_id. For 'file' context, this is the file_key. Note: team_id cannot be programmatically obtained from the API - extract it from your Figma team URL: https://www.figma.com/files/team/YOUR_TEAM_ID/Team-Name |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get versions of a file
+
+Slug: `FIGMA_GET_VERSIONS_OF_A_FILE`
+
+Retrieves the version history for a Figma file or branch, as specified by its `file_key`.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `after` | integer | No | Version ID for pagination; retrieves versions created strictly after this ID. |
+| `before` | integer | No | Version ID for pagination; retrieves versions created strictly before this ID. |
+| `file_key` | string | Yes | The key of the Figma file or branch from which to retrieve the version history. Extract from file URL: https://www.figma.com/design/{file_key}/... or https://www.figma.com/file/{file_key}/... For branch keys, use `GET /v1/files/:key` with the `branch_data` query param to obtain it. The authenticated user must have access to the file; otherwise a 404 'Not found' error is returned. |
+| `page_size` | integer | No | Number of version items per page. The API defaults to 30 if this parameter is not sent. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Get webhook requests
+
+Slug: `FIGMA_GET_WEBHOOK_REQUESTS`
+
+Retrieves a history of webhook requests for a specific Figma webhook subscription; data is available for requests sent within the last seven days.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `webhook_id` | string | Yes | The unique identifier of the Figma webhook subscription for which to retrieve past event requests. This refers to the ID of the webhook itself, not an individual event. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Render images of file nodes
+
+Slug: `FIGMA_RENDER_IMAGES_OF_FILE_NODES`
+
+Render Figma nodes as images (PNG, JPG, SVG, PDF). Returns a map of node IDs to temporary image URLs (valid for 30 days). Images are capped at 32 megapixels; larger requests are automatically scaled down. REQUIRED PARAMETERS: - file_key: Figma file key from URL (e.g., 'abc123XYZ' from figma.com/design/abc123XYZ/...) - ids: Comma-separated node IDs to render (e.g., '1:2' or '1:2,1:3,1:4') NODE IDs: Found in Figma URLs after 'node-id=' or from FIGMA_GET_FILE_JSON response. FORMATS: - png/jpg: Raster images with optional scale (0.01-4.0) - svg: Vector graphics with text outline options - pdf: Document format COMMON ISSUES: - null value in images map = node failed to render (invalid ID, invisible, 0% opacity) - 404 error = file_key not found or no access - 429 error = rate limit exceeded, wait and retry
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `ids` | string | Yes | Comma-separated list of node IDs to render as images. Node IDs are found in Figma URLs after 'node-id=' (e.g., '1:2') or from FIGMA_GET_FILE_JSON response. Example: '1:2,1:3,1:4'. |
+| `scale` | number | No | Image scaling factor between 0.01 and 4.0. Example: 2.0 renders at 2x resolution. Applies to PNG/JPG only; ignored for SVG/PDF. |
+| `format` | string ("jpg" | "pdf" | "png" |
+| `version` | string | No | Specific version ID of the file to render. If omitted, uses current version. |
+| `file_key` | string | Yes | Key of the Figma file or branch. Extract from Figma URLs: figma.com/design/{file_key}/... or figma.com/file/{file_key}/... For branch keys, use GET /v1/files/:key with branch_data=true. |
+| `contents_only` | boolean | No | If true, excludes content that overlaps node boundaries. If false, includes overlapping content (may increase processing time). |
+| `svg_include_id` | boolean | No | (SVG only) If true, includes 'id' attributes (using layer names) on SVG elements. |
+| `svg_outline_text` | boolean | No | (SVG only) If true, text renders as vector paths (outlines) for exact visual fidelity. If false, text renders as elements (selectable, but appearance may vary by system fonts). |
+| `svg_include_node_id` | boolean | No | (SVG only) If true, adds 'data-node-id' attribute (with Figma node ID) to SVG elements. |
+| `svg_simplify_stroke` | boolean | No | (SVG only) If true, simplifies strokes using 'stroke' attribute instead of . |
+| `use_absolute_bounds` | boolean | No | If true, uses full node dimensions ignoring cropping/empty space. Useful for text nodes to avoid unintended cropping. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Update a webhook
+
+Slug: `FIGMA_UPDATE_A_WEBHOOK`
+
+Updates an existing Figma webhook, identified by `webhook_id`, allowing modification of its event type, endpoint, passcode, status, or description.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `status` | string ("ACTIVE" | "PAUSED") | No |
+| `endpoint` | string | No | URL of the HTTPS endpoint to receive POST requests for webhook events. Max length 2048. Optional - only provide to change the endpoint. |
+| `passcode` | string | No | Secret string for your endpoint to verify webhook authenticity. Max length 100. Optional - only provide to change the passcode. |
+| `event_type` | string ("FILE_COMMENT" | "FILE_DELETE" | "FILE_UPDATE" |
+| `webhook_id` | string | Yes | Unique identifier of the existing webhook to update. Obtain from GET team webhooks or after creating a webhook. |
+| `description` | string | No | User-friendly description for the webhook. Max length 140 characters. Pass empty string to remove. Optional. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
+
+### Update dev resources
+
+Slug: `FIGMA_UPDATE_DEV_RESOURCES`
+
+Updates the name and/or URL of one or more existing Figma Dev Resources, each identified by its unique `id`.
+
+#### Input Parameters
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `dev_resources` | array | Yes | List of dev resources to update. Each must include its `id` and can optionally provide a new `name` and/or `url`. |
+
+#### Output
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `data` | string | Yes | Data from the action execution |
+| `error` | string | No | Error if any occurred during the execution of the action |
+| `successful` | boolean | Yes | Whether or not the action execution was successful or not |
