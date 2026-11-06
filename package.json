@@ -1,0 +1,13 @@
+{
+  "name": "f1-paddock-data",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Prebaked static data layer for the F1 Paddock site",
+  "scripts": {
+    "prebake": "node scripts/prebake.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
