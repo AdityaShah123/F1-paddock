@@ -256,10 +256,73 @@ for (const id of index.circuits) {
   }
   if (c.circuitId !== id) fail(`${id}: circuitId field says "${c.circuitId}"`);
 }
+
 check(geomBad === 0, `${index.circuits.length} circuits have well-formed closed, evenly spaced geometry`);
 check(lenBad === 0, 'speed/throttle/brake match points length and sit within 0-1 everywhere');
 check(volBad === 0, 'every circuit is centred on the origin with its longest axis spanning exactly 100');
 check(sectorBad === 0, 'every circuit has three ascending sector indices starting at 0');
+
+const SOURCES = new Set(['multiviewer', 'location', 'f1-circuits']);
+const NO_CORNERS = new Set(['sepang', 'madring']);
+let sourceBad = 0;
+let cornerBad = 0;
+for (const id of index.circuits) {
+  const c = await read(`circuits/${id}.json`);
+  const n = c.points.length;
+  if (!SOURCES.has(c.outlineSource)) {
+    fail(`${id}: outlineSource "${c.outlineSource}" is not location|multiviewer|f1-circuits`);
+    sourceBad++;
+  }
+  if (c.outlineSource !== 'location') {
+    fail(`${id}: outlineSource is "${c.outlineSource}", expected "location" (MultiViewer outline is not used)`);
+    sourceBad++;
+  }
+  if (NO_CORNERS.has(id)) {
+    if (c.corners) {
+      fail(`${id}: MultiViewer 404s here; corners array must be omitted`);
+      cornerBad++;
+    }
+    if (c.cornersSource) {
+      fail(`${id}: cornersSource must be omitted when there are no corners`);
+      cornerBad++;
+    }
+    continue;
+  }
+  if (c.cornersSource !== 'multiviewer') {
+    fail(`${id}: cornersSource is "${c.cornersSource}", expected "multiviewer"`);
+    cornerBad++;
+  }
+  if (!Array.isArray(c.corners) || !c.corners.length) {
+    fail(`${id}: missing MultiViewer corners`);
+    cornerBad++;
+    continue;
+  }
+  const nums = new Set();
+  for (const corner of c.corners) {
+    if (!Number.isInteger(corner.number) || corner.number < 1) {
+      fail(`${id}: corner number ${corner.number} is not a positive integer`);
+      cornerBad++;
+    }
+    if (nums.has(corner.number)) {
+      fail(`${id}: duplicate corner number ${corner.number}`);
+      cornerBad++;
+    }
+    nums.add(corner.number);
+    if (!Number.isInteger(corner.index) || corner.index < 0 || corner.index >= n) {
+      fail(`${id}: corner #${corner.number} index ${corner.index} is outside 0..${n - 1}`);
+      cornerBad++;
+    }
+    if (!Number.isFinite(corner.angle) || !Number.isFinite(corner.lengthMetres) || corner.lengthMetres < 0) {
+      fail(`${id}: corner #${corner.number} has non-finite angle/lengthMetres`);
+      cornerBad++;
+    }
+  }
+}
+check(sourceBad === 0, 'every circuit has outlineSource "location"');
+check(
+  cornerBad === 0,
+  `corners present (and well-formed) except sepang/madring, which omit them`,
+);
 
 // Same volume across circuits: the renderer must not need per-circuit tuning.
 if (volumes.length) {

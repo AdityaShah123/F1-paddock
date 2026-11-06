@@ -19,6 +19,12 @@ const CACHE = path.join(ROOT, '.cache', 'prebake');
 const YEAR = 2026;
 const JOLPICA = 'https://api.jolpi.ca/ergast/f1';
 const OPENF1 = 'https://api.openf1.org/v1';
+const MULTIVIEWER = 'https://api.multiviewer.app/api/v1';
+
+/** OpenF1 free tier is 3 req/s and 30 req/min. Serialise and space those calls. */
+const OPENF1_GAP_MS = 2200;
+let lastOpenF1At = 0;
+let openF1Tail = Promise.resolve();
 
 const FILE_BUDGET = 400 * 1024;
 const TREE_BUDGET = 8 * 1024 * 1024;
@@ -88,6 +94,20 @@ async function getJson(url, { allow404 = false, retries = 4 } = {}) {
     for (let attempt = 0; attempt <= retries; attempt++) {
       if (attempt > 0) await sleep(Math.min(16000, 1000 * 2 ** attempt));
       try {
+        if (url.includes('api.openf1.org')) {
+          await new Promise((resolve) => {
+            const run = openF1Tail.then(async () => {
+              const wait = lastOpenF1At + OPENF1_GAP_MS - Date.now();
+              if (wait > 0) await sleep(wait);
+              lastOpenF1At = Date.now();
+            });
+            openF1Tail = run.then(
+              () => {},
+              () => {},
+            );
+            run.then(resolve, resolve);
+          });
+        }
         const res = await fetch(url, {
           headers: { 'user-agent': 'f1-paddock-prebake/1.0' },
           signal: AbortSignal.timeout(90_000),
@@ -349,6 +369,133 @@ function normalise01(values) {
   const span = max - min;
   if (span <= 0) return values.map(() => 0);
   return values.map((v) => (Number.isFinite(v) ? (v - min) / span : 0));
+}
+
+/**
+ * MultiViewer corners live in the same x/y plane as OpenF1 `location` (decimetres).
+ * Geometry is never taken from MultiViewer: the endpoint ignores the requested year
+ * (2026 Shanghai comes back as 2019, Monza as 2021) and the outline is 2D. Corners
+ * are mapped onto the already-built racing line by nearest ground-plane position.
+ */
+async function loadMultiViewer(circuitKey) {
+  const body = await getJson(`${MULTIVIEWER}/circuits/${circuitKey}/${YEAR}`, { allow404: true });
+  if (!body || !Array.isArray(body.corners) || !body.corners.length) return null;
+  if (body.year !== YEAR) {
+    log(`    MultiViewer year=${body.year} for circuit_key ${circuitKey} (asked ${YEAR}); corners only, outline discarded`);
+  }
+  return body;
+}
+
+function stripCornerDistance(corners) {
+  return corners.map(({ number, index, angle, lengthMetres }) => ({
+    number,
+    index,
+    angle,
+    lengthMetres,
+  }));
+}
+
+/** Maps MultiViewer corners onto unnormalised samples in metres (OpenF1 x/y plane). */
+function mapCornersToSamples(sampled, mvCorners) {
+  return [...mvCorners]
+    .sort((a, b) => a.number - b.number)
+    .map((c) => {
+      const x = c.trackPosition.x / 10;
+      const y = c.trackPosition.y / 10;
+      let best = 0;
+      let bestD = Infinity;
+      for (let i = 0; i < sampled.length; i++) {
+        const d = Math.hypot(sampled[i].x - x, sampled[i].y - y);
+        if (d < bestD) {
+          bestD = d;
+          best = i;
+        }
+      }
+      return {
+        number: c.number,
+        index: best,
+        angle: round(c.angle, 3),
+        lengthMetres: round(c.length / 10, 1),
+        distanceMetres: bestD,
+      };
+    });
+}
+
+/**
+ * Same mapping for already-normalised committed points. MultiViewer outline x/y
+ * recover the OpenF1-space bbox (agrees with location to ~10 cm), which is then
+ * centred and scaled the same way the racing line was. Never replaces `points`.
+ */
+function mapCornersToNormalized(points, mv) {
+  if (!Array.isArray(mv.x) || !Array.isArray(mv.y) || !mv.x.length) return [];
+  const minX = Math.min(...mv.x);
+  const maxX = Math.max(...mv.x);
+  const minY = Math.min(...mv.y);
+  const maxY = Math.max(...mv.y);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const scale = 100 / Math.max((maxX - minX) / 10, (maxY - minY) / 10);
+  return [...mv.corners]
+    .sort((a, b) => a.number - b.number)
+    .map((c) => {
+      const nx = ((c.trackPosition.x - cx) / 10) * scale;
+      const nz = ((c.trackPosition.y - cy) / 10) * scale;
+      let best = 0;
+      let bestD = Infinity;
+      for (let i = 0; i < points.length; i++) {
+        const d = Math.hypot(points[i][0] - nx, points[i][2] - nz);
+        if (d < bestD) {
+          bestD = d;
+          best = i;
+        }
+      }
+      return {
+        number: c.number,
+        index: best,
+        angle: round(c.angle, 3),
+        lengthMetres: round(c.length / 10, 1),
+        distanceMetres: bestD / scale,
+      };
+    });
+}
+
+function uniquifyCornerNumbers(corners, circuitId) {
+  const nums = corners.map((c) => c.number);
+  if (new Set(nums).size === nums.length) return corners;
+  warn(
+    `${circuitId}: MultiViewer repeated corner numbers (${nums.join(',')}); numbering 1..${corners.length} by track order`,
+  );
+  return corners.map((c, i) => ({ ...c, number: i + 1 }));
+}
+
+function attachCorners(circuit, corners, circuitId) {
+  if (!corners || !corners.length) return circuit;
+  const unique = uniquifyCornerNumbers(corners, circuitId);
+  const far = unique.filter((c) => c.distanceMetres > 25);
+  if (far.length) {
+    warn(
+      `${circuitId}: ${far.length} MultiViewer corner(s) sit >25 m from the racing line ` +
+        `(${far.map((c) => `#${c.number} ${c.distanceMetres.toFixed(1)}m`).join(', ')})`,
+    );
+  }
+  return {
+    ...circuit,
+    cornersSource: 'multiviewer',
+    corners: stripCornerDistance(unique),
+  };
+}
+
+/** Trapezoidal integral of car_data speed over a lap window, in metres. */
+function integrateSpeedMetres(car, t0, t1) {
+  const inLap = car.filter((c) => c.t >= t0 && c.t <= t1);
+  if (inLap.length < 50) return null;
+  let travelled = 0;
+  for (let i = 1; i < inLap.length; i++) {
+    const dt = (inLap[i].t - inLap[i - 1].t) / 1000;
+    if (dt <= 0 || dt > 3) continue;
+    travelled += ((inLap[i].speed + inLap[i - 1].speed) / 2 / 3.6) * dt;
+  }
+  return travelled;
 }
 
 /** Downsamples any series to exactly `count` values by linear interpolation. */
@@ -731,15 +878,13 @@ async function buildCircuitFromLap(race, session, lap) {
   // Integrating speed over the lap measures its length independently of the geometry.
   // If the two disagree the traced path is not one clean lap - usually two merged
   // crossings covering more than a full circuit.
-  const inLapCar = car.filter((c) => c.t >= t0 && c.t <= t1);
-  if (inLapCar.length >= 50) {
-    let travelled = 0;
-    for (let i = 1; i < inLapCar.length; i++) {
-      const dt = (inLapCar[i].t - inLapCar[i - 1].t) / 1000;
-      if (dt <= 0 || dt > 3) continue;
-      travelled += ((inLapCar[i].speed + inLapCar[i - 1].speed) / 2 / 3.6) * dt;
-    }
-    if (travelled > 500 && Math.abs(lengthMetres - travelled) / travelled > 0.12) {
+  const travelled = integrateSpeedMetres(car, t0, t1);
+  if (travelled != null) {
+    const rel = Math.abs(lengthMetres - travelled) / travelled;
+    log(
+      `    length  geom ${lengthMetres.toFixed(0)} m  integrated ${travelled.toFixed(0)} m  Δ ${(rel * 100).toFixed(1)}%`,
+    );
+    if (travelled > 500 && rel > 0.12) {
       throw new Error(
         `geometry is ${lengthMetres.toFixed(0)} m but speed integrates to ${travelled.toFixed(0)} m`,
       );
@@ -807,18 +952,165 @@ async function buildCircuitFromLap(race, session, lap) {
     round((az[i] - cz) * scale, 3),
   ]);
 
-  return {
+  // Corners from MultiViewer, snapped onto this racing line. The outline itself is
+  // discarded: it is 2D and the endpoint silently returns a stale year.
+  const mv = await loadMultiViewer(session.circuitKey);
+  const mapped = mv ? mapCornersToSamples(sampled, mv.corners) : null;
+  if (!mv) {
+    log(`    MultiViewer 404 for circuit_key ${session.circuitKey}; shipping without corners`);
+  }
+
+  const circuit = {
     circuitId: race.circuitId,
     name: race.circuitName,
     country: race.country,
-    sourceDriver: drv,
+    outlineSource: 'location',
     sessionKey: session.sessionKey,
+    sourceDriver: drv,
     lengthMetres: Math.round(lengthMetres),
     points,
     speed: speed.map((v) => round(v, 4)),
     throttle: throttle.map((v) => round(v, 4)),
     brake: brake.map((v) => round(v, 4)),
     sectors,
+  };
+  return attachCorners(circuit, mapped, race.circuitId);
+}
+
+// ---------------------------------------------------------------------------
+// Annotate existing circuits (corners + length check) without rebuilding geometry
+// ---------------------------------------------------------------------------
+
+/**
+ * Adds MultiViewer corners and outlineSource to already-baked circuit files, and
+ * re-runs the speed-integration length check against each file's stored lengthMetres.
+ * Geometry, telemetry arrays and season/driver files are left untouched.
+ */
+async function annotateCornersAndCheckLength() {
+  await mkdir(CACHE, { recursive: true });
+
+  log(`\nF1 Paddock annotate-corners - ${YEAR}\n`);
+  log('Sessions...');
+  const [calendar, sessions] = await Promise.all([loadCalendar(), loadRaceSessions()]);
+  const sessionByCircuit = joinOnCircuit(calendar, sessions);
+  const sessionByKey = new Map(sessions.map((s) => [s.sessionKey, s]));
+
+  const circuitDir = path.join(OUT, 'circuits');
+  const files = (await readdir(circuitDir)).filter((f) => f.endsWith('.json')).sort();
+  const lengthReport = [];
+
+  log(`\n${files.length} circuits on disk\n`);
+  for (const file of files) {
+    const id = file.replace(/\.json$/, '');
+    const circuit = JSON.parse(await readFile(path.join(circuitDir, file), 'utf8'));
+    const session = sessionByKey.get(circuit.sessionKey) || sessionByCircuit.get(id);
+    if (!session) {
+      warn(`${id}: no OpenF1 session for sessionKey ${circuit.sessionKey}`);
+      continue;
+    }
+
+    const mv = await loadMultiViewer(session.circuitKey);
+    let next = {
+      circuitId: circuit.circuitId,
+      name: circuit.name,
+      country: circuit.country,
+      outlineSource: 'location',
+      sessionKey: circuit.sessionKey,
+      sourceDriver: circuit.sourceDriver,
+      lengthMetres: circuit.lengthMetres,
+      points: circuit.points,
+      speed: circuit.speed,
+      throttle: circuit.throttle,
+      brake: circuit.brake,
+      sectors: circuit.sectors,
+    };
+    if (mv) {
+      const mapped = mapCornersToNormalized(circuit.points, mv);
+      next = attachCorners(next, mapped, id);
+      const meanD = mapped.reduce((s, c) => s + c.distanceMetres, 0) / mapped.length;
+      const maxD = Math.max(...mapped.map((c) => c.distanceMetres));
+      log(
+        `  ok   ${id.padEnd(16)} ${String(mapped.length).padStart(2)} corners  ` +
+          `map mean ${meanD.toFixed(1)} m  max ${maxD.toFixed(1)} m  (MV year ${mv.year})`,
+      );
+    } else {
+      log(`  ok   ${id.padEnd(16)} no corners (MultiViewer 404 for circuit_key ${session.circuitKey})`);
+    }
+
+    const length = await checkIntegratedLength(next, session);
+    lengthReport.push(length);
+    await writeJson(`circuits/${id}.json`, next);
+  }
+
+  log('\nSpeed-integration length check');
+  log('  circuit          geom m   integ m      Δ%');
+  const disagreements = [];
+  for (const row of lengthReport) {
+    if (!row) continue;
+    const delta = row.travelled == null ? '  n/a' : (row.rel * 100).toFixed(1).padStart(5);
+    log(
+      `  ${row.id.padEnd(16)} ${String(row.geom).padStart(6)}  ${
+        row.travelled == null ? '   n/a' : String(Math.round(row.travelled)).padStart(6)
+      }  ${delta}%` + (row.note ? `  ${row.note}` : ''),
+    );
+    if (row.travelled != null && row.rel > 0.03) disagreements.push(row);
+  }
+  if (disagreements.length) {
+    log(`\n  ${disagreements.length} circuit(s) disagree by more than 3%:`);
+    for (const row of disagreements) {
+      log(`    ${row.id}: geom ${row.geom} m vs integrated ${Math.round(row.travelled)} m (Δ ${(row.rel * 100).toFixed(1)}%)`);
+    }
+  } else {
+    log('\n  none disagree by more than 3%');
+  }
+  log('\nDone.\n');
+  return lengthReport;
+}
+
+/**
+ * Integrates car_data speed for the source driver's clean laps and reports the
+ * candidate whose travelled distance is closest to the baked geometric length.
+ */
+async function checkIntegratedLength(circuit, session) {
+  const laps = await getJson(`${OPENF1}/laps?session_key=${session.sessionKey}`, { allow404: true });
+  const mine = cleanLaps((laps || []).filter((l) => l.driver_number === circuit.sourceDriver));
+  if (!mine.length) {
+    warn(`${circuit.circuitId}: no clean laps for source driver #${circuit.sourceDriver}`);
+    return { id: circuit.circuitId, geom: circuit.lengthMetres, travelled: null, rel: null, note: 'no laps' };
+  }
+
+  let best = null;
+  for (const lap of mine.slice(0, 3)) {
+    const t0 = Date.parse(lap.date_start);
+    const t1 = t0 + lap.lap_duration * 1000;
+    const from = new Date(t0 - 2000).toISOString().replace('Z', '');
+    const to = new Date(t1 + 2000).toISOString().replace('Z', '');
+    const carRaw = await getJson(
+      `${OPENF1}/car_data?session_key=${session.sessionKey}&driver_number=${circuit.sourceDriver}` +
+        `&date%3E${from}&date%3C${to}`,
+      { allow404: true },
+    );
+    const car = (carRaw || [])
+      .filter((c) => Number.isFinite(c.speed))
+      .map((c) => ({ t: Date.parse(c.date), speed: c.speed }))
+      .filter((c) => Number.isFinite(c.t))
+      .sort((a, b) => a.t - b.t);
+    const travelled = integrateSpeedMetres(car, t0, t1);
+    if (travelled == null || travelled < 500) continue;
+    const rel = Math.abs(circuit.lengthMetres - travelled) / travelled;
+    if (!best || rel < best.rel) {
+      best = { travelled, rel, lap: lap.lap_number };
+    }
+  }
+  if (!best) {
+    return { id: circuit.circuitId, geom: circuit.lengthMetres, travelled: null, rel: null, note: 'no car_data' };
+  }
+  return {
+    id: circuit.circuitId,
+    geom: circuit.lengthMetres,
+    travelled: best.travelled,
+    rel: best.rel,
+    note: `lap ${best.lap}`,
   };
 }
 
@@ -829,6 +1121,11 @@ async function buildCircuitFromLap(race, session, lap) {
 async function main() {
   await mkdir(CACHE, { recursive: true });
   await mkdir(OUT, { recursive: true });
+
+  if (process.argv.includes('--annotate-corners')) {
+    await annotateCornersAndCheckLength();
+    return;
+  }
 
   log(`\nF1 Paddock prebake - ${YEAR}\n`);
 
@@ -997,7 +1294,8 @@ async function main() {
       builtCircuits.push(race.circuitId);
       log(
         `  ok   ${race.circuitId.padEnd(16)} ${String(circuit.points.length).padStart(3)} pts  ` +
-          `${String(circuit.lengthMetres).padStart(5)} m  drv #${circuit.sourceDriver}  ${(size / 1024).toFixed(0)} KB`,
+          `${String(circuit.lengthMetres).padStart(5)} m  drv #${circuit.sourceDriver}  ` +
+          `${circuit.corners ? circuit.corners.length + ' corners' : 'no corners'}  ${(size / 1024).toFixed(0)} KB`,
       );
     } catch (e) {
       skipped.push({ kind: 'circuit', id: race.circuitId, reason: e.message });

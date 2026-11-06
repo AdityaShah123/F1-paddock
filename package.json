@@ -6,6 +6,7 @@
   "description": "Prebaked static data layer for the F1 Paddock site",
   "scripts": {
     "prebake": "node scripts/prebake.mjs",
+    "annotate-corners": "node scripts/prebake.mjs --annotate-corners",
     "validate": "node scripts/validate.mjs"
   },
   "engines": {
