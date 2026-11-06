@@ -10,9 +10,9 @@ export function elevationBoost(points: [number, number, number][]) {
   }
   const range = maxY - minY;
   if (range < 0.35) return 1;
-  if (range < 3) return 5.4;
-  if (range < 8) return 4.35;
-  return 2.4;
+  if (range < 3) return 7.2;
+  if (range < 8) return 6.4;
+  return 3.2;
 }
 
 export function circuitCurve(circuit: Circuit) {

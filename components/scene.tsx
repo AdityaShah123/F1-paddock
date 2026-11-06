@@ -15,21 +15,47 @@ const _tan = new THREE.Vector3();
 const _look = new THREE.Vector3();
 const _cam = new THREE.Vector3();
 const _side = new THREE.Vector3();
+const BRAKE = new THREE.Color("#FF4A1F");
+const LOW = new THREE.Color("#5B8CFF");
+const MID = new THREE.Color("#F2D36B");
+const HOT = new THREE.Color("#FFF6E0");
+
 function speedToColor(speed: number, brake: number, target: THREE.Color) {
-  if (brake > 0.55) {
-    target.setRGB(1, 0.38 + (1 - brake) * 0.2, 0.05);
+  if (brake > 0.48) {
+    target.copy(BRAKE).lerp(MID, 1 - brake);
     return;
   }
-  const hot = new THREE.Color("#F4F1E8");
-  const cold = new THREE.Color("#3AA6C8");
-  target.copy(cold).lerp(hot, THREE.MathUtils.clamp(speed, 0, 1));
+  if (speed < 0.45) {
+    target.copy(LOW).lerp(MID, speed / 0.45);
+    return;
+  }
+  target.copy(MID).lerp(HOT, (speed - 0.45) / 0.55);
 }
 
-function Ribbon({ circuit, mobile }: { circuit: Circuit; mobile: boolean }) {
-  const { geometry, material } = useMemo(() => {
+function Asphalt({ circuit, mobile }: { circuit: Circuit; mobile: boolean }) {
+  const geometry = useMemo(() => {
     const { curve } = circuitCurve(circuit);
-    const segments = mobile ? 90 : Math.min(200, Math.max(120, Math.floor(circuit.points.length * 0.38)));
-    const geometry = new THREE.TubeGeometry(curve, segments, mobile ? 0.38 : 0.46, mobile ? 5 : 8, true);
+    const segments = mobile ? 80 : 160;
+    return new THREE.TubeGeometry(curve, segments, mobile ? 0.92 : 1.18, mobile ? 6 : 10, true);
+  }, [circuit, mobile]);
+  return (
+    <mesh geometry={geometry} castShadow receiveShadow>
+      <meshStandardMaterial
+        color="#3A4454"
+        roughness={0.72}
+        metalness={0.08}
+        emissive="#1a2433"
+        emissiveIntensity={0.22}
+      />
+    </mesh>
+  );
+}
+
+function SpeedRibbon({ circuit, mobile }: { circuit: Circuit; mobile: boolean }) {
+  const geometry = useMemo(() => {
+    const { curve } = circuitCurve(circuit);
+    const segments = mobile ? 90 : Math.min(220, Math.max(140, Math.floor(circuit.points.length * 0.42)));
+    const geometry = new THREE.TubeGeometry(curve, segments, mobile ? 0.38 : 0.52, mobile ? 5 : 8, true);
     const colors = new Float32Array(geometry.attributes.position.count * 3);
     const color = new THREE.Color();
     for (let i = 0; i < geometry.attributes.position.count; i += 1) {
@@ -40,30 +66,12 @@ function Ribbon({ circuit, mobile }: { circuit: Circuit; mobile: boolean }) {
       colors[i * 3 + 2] = color.b;
     }
     geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-    const material = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.28,
-      metalness: 0.18,
-      emissive: new THREE.Color("#8a7d62"),
-      emissiveIntensity: 0.28,
-      toneMapped: false,
-    });
-    return { geometry, material };
+    return geometry;
   }, [circuit, mobile]);
 
   return (
-    <mesh geometry={geometry} material={material} />
-  );
-}
-
-function GhostRibbon({ circuit }: { circuit: Circuit }) {
-  const geometry = useMemo(() => {
-    const { curve } = circuitCurve(circuit);
-    return new THREE.TubeGeometry(curve, 80, 0.18, 4, true);
-  }, [circuit]);
-  return (
     <mesh geometry={geometry}>
-      <meshBasicMaterial color="#6d6a63" wireframe transparent opacity={0.18} />
+      <meshBasicMaterial vertexColors toneMapped={false} />
     </mesh>
   );
 }
@@ -79,28 +87,21 @@ function RoundPins({ circuit, stops }: { circuit: Circuit; stops: ContentStop[] 
           const completed = stop.round.status === "completed";
           return (
             <group key={`${stop.round.round}-${stop.round.circuitId}`} position={point}>
-              <mesh position={[0, completed ? 1.15 : 0.7, 0]}>
-                <cylinderGeometry args={[0.035, 0.035, completed ? 2.3 : 1.4, 6]} />
-                <meshBasicMaterial
-                  color={completed ? "#E8E2D4" : "#5c5850"}
-                  transparent
-                  opacity={completed ? 0.9 : 0.45}
+              <mesh position={[0, completed ? 1.4 : 0.85, 0]}>
+                <cylinderGeometry args={[0.05, 0.05, completed ? 2.8 : 1.7, 8]} />
+                <meshStandardMaterial
+                  color={completed ? "#F4EFE4" : "#6d7380"}
+                  emissive={completed ? "#d8d0c0" : "#000"}
+                  emissiveIntensity={completed ? 0.35 : 0}
                 />
               </mesh>
-              <mesh position={[0.42, completed ? 2.05 : 1.25, 0]} rotation={[0, 0, 0.15]}>
-                <planeGeometry args={completed ? [0.95, 0.62] : [0.7, 0.48]} />
-                <meshBasicMaterial
-                  color={completed ? "#f2efe6" : "#2a2926"}
+              <mesh position={[0.55, completed ? 2.5 : 1.5, 0]}>
+                <boxGeometry args={completed ? [1.15, 0.72, 0.08] : [0.8, 0.5, 0.06]} />
+                <meshStandardMaterial
+                  color={completed ? "#f7f2e8" : "#2e3340"}
                   wireframe={!completed}
-                  side={THREE.DoubleSide}
                 />
               </mesh>
-              {completed ? (
-                <mesh position={[0.42, 2.05, 0.01]} rotation={[0, 0, 0.15]}>
-                  <planeGeometry args={[0.95, 0.62]} />
-                  <meshBasicMaterial color="#111" opacity={0.35} transparent />
-                </mesh>
-              ) : null}
             </group>
           );
         })}
@@ -120,39 +121,37 @@ function CameraRig({
   const { camera } = useThree();
   const { curve } = useMemo(() => circuitCurve(circuit), [circuit]);
   const smoothed = useRef(0);
-  const fov = useRef(48);
+  const fov = useRef(46);
 
   useFrame((_, delta) => {
     const target = lapRef.t;
     const brake = brakeAmount(stops, target);
-    const follow = 1 - Math.exp(-(brake > 0.4 ? 3.2 : 5.6) * delta);
-    smoothed.current = THREE.MathUtils.damp(smoothed.current, target, brake > 0.35 ? 2.4 : 5.1, delta);
+    smoothed.current = THREE.MathUtils.damp(smoothed.current, target, brake > 0.35 ? 2.1 : 4.6, delta);
     const t = ((smoothed.current % 1) + 1) % 1;
     const speed = sampleChannel(circuit.speed, t);
     const scroll = Math.min(1, Math.abs(lapRef.v) / 1.8);
-    const intensity = THREE.MathUtils.clamp(speed * 0.75 + scroll * 0.55, 0, 1) * (1 - brake * 0.7);
+    const intensity = THREE.MathUtils.clamp(speed * 0.7 + scroll * 0.5, 0, 1) * (1 - brake * 0.65);
 
     curve.getPointAt(t, _pos);
     curve.getTangentAt(t, _tan).normalize();
-    const lookT = (t + 0.018 + intensity * 0.012) % 1;
-    curve.getPointAt(lookT, _look);
+    curve.getPointAt((t + 0.028 + intensity * 0.01) % 1, _look);
     _side.copy(_tan).cross(UP).normalize();
 
-    const height = (mobile ? 2.6 : 2.15) + intensity * 1.7 + brake * 1.1;
-    const back = (mobile ? 7.4 : 5.8) + intensity * 3.4 - brake * 2.2;
+    const height = (mobile ? 4.2 : 3.6) + intensity * 1.4 + brake * 0.8;
+    const back = (mobile ? 11.2 : 9.6) + intensity * 2.4 - brake * 1.6;
     _cam.copy(_pos).addScaledVector(UP, height).addScaledVector(_tan, -back);
-    _cam.addScaledVector(_side, Math.sin(t * Math.PI * 2) * 0.15);
+    _cam.addScaledVector(_side, 0.35);
 
-    camera.position.lerp(_cam, follow);
-    camera.up.lerp(UP, 0.2);
-    camera.lookAt(_look.addScaledVector(UP, 0.35 + brake * 0.4));
+    camera.position.lerp(_cam, 1 - Math.exp(-5.2 * delta));
+    camera.up.lerp(UP, 0.25);
+    camera.lookAt(_look.addScaledVector(UP, 0.55));
 
-    const nextFov = 42 + intensity * (mobile ? 16 : 26) - brake * 10;
-    fov.current = THREE.MathUtils.damp(fov.current, nextFov, 4, delta);
+    const nextFov = 44 + intensity * (mobile ? 10 : 16) - brake * 8;
+    fov.current = THREE.MathUtils.damp(fov.current, nextFov, 3.6, delta);
     const persp = camera as THREE.PerspectiveCamera;
     persp.fov = fov.current;
-    persp.near = 0.1;
-    persp.far = 240;
+    persp.near = 0.15;
+    persp.far = 260;
     persp.updateProjectionMatrix();
   });
 
@@ -165,17 +164,17 @@ function Headlight({ circuit }: { circuit: Circuit }) {
   useFrame(() => {
     if (!light.current) return;
     curve.getPointAt(((lapRef.t % 1) + 1) % 1, _pos);
-    light.current.position.copy(_pos).addScaledVector(UP, 1.4);
+    light.current.position.copy(_pos).addScaledVector(UP, 2.4);
   });
-  return <pointLight ref={light} intensity={18} distance={28} color="#fff4e0" />;
+  return <pointLight ref={light} intensity={42} distance={36} color="#fff3d4" />;
 }
 
 function Post({ mobile }: { mobile: boolean }) {
   if (mobile) return null;
   return (
     <EffectComposer enableNormalPass={false} multisampling={0}>
-      <Bloom intensity={0.62} luminanceThreshold={0.18} mipmapBlur luminanceSmoothing={0.12} />
-      <Vignette darkness={0.62} offset={0.28} />
+      <Bloom intensity={0.28} luminanceThreshold={0.42} mipmapBlur luminanceSmoothing={0.2} />
+      <Vignette darkness={0.28} offset={0.35} />
     </EffectComposer>
   );
 }
@@ -191,12 +190,23 @@ export function CircuitScene({
 }) {
   return (
     <>
-      <color attach="background" args={["#020203"]} />
-      <fog attach="fog" args={["#020203", 14, 95]} />
-      <hemisphereLight args={["#c9d4e0", "#1a120c", 0.55]} />
+      <color attach="background" args={["#151B26"]} />
+      <fog attach="fog" args={["#1A2230", 28, 130]} />
+      <hemisphereLight args={["#c9d6ea", "#2a2118", 1.15]} />
+      <directionalLight
+        position={[18, 32, 12]}
+        intensity={2.4}
+        color="#fff6e8"
+        castShadow={!mobile}
+      />
+      <ambientLight intensity={0.45} color="#9aa8c0" />
       <Headlight circuit={circuit} />
-      <GhostRibbon circuit={circuit} />
-      <Ribbon circuit={circuit} mobile={mobile} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -6, 0]} receiveShadow>
+        <planeGeometry args={[400, 400]} />
+        <meshStandardMaterial color="#10151D" roughness={1} />
+      </mesh>
+      <Asphalt circuit={circuit} mobile={mobile} />
+      <SpeedRibbon circuit={circuit} mobile={mobile} />
       <RoundPins circuit={circuit} stops={stops} />
       <CameraRig circuit={circuit} stops={stops} mobile={mobile} />
       <Post mobile={mobile} />

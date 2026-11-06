@@ -29,7 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`dark ${archivo.variable} ${plexMono.variable} antialiased`}
     >
-      <body className="bg-[#020203] font-[family-name:var(--font-archivo)] text-[#E8E2D4]">
+      <body className="bg-[#151B26] font-[family-name:var(--font-archivo)] text-[#F4EFE4]">
         {children}
       </body>
     </html>

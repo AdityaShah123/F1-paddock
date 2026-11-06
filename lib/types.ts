@@ -126,6 +126,32 @@ export type Driver = {
   season: DriverSeason;
 };
 
+export type RaceResultRow = {
+  position: number;
+  driverId: string;
+  code: string;
+  permanentNumber: number;
+  givenName: string;
+  familyName: string;
+  constructorId: string;
+  status: string;
+  time: string | null;
+  fastestLap: { rank: number; lap: number; time: string } | null;
+};
+
+export type RaceResult = {
+  round: number;
+  raceName: string;
+  circuitId: string;
+  fastestLap: { driverId: string; code: string; time: string; lap: number } | null;
+  results: RaceResultRow[];
+};
+
+export type ResultsFile = {
+  throughRound: number;
+  rounds: Record<string, RaceResult>;
+};
+
 export type PaddockData = {
   index: DataIndex;
   season: Season;
@@ -134,6 +160,7 @@ export type PaddockData = {
   teams: Team[];
   drivers: Driver[];
   circuit: Circuit;
+  results: ResultsFile;
 };
 
 export type StopKind = "intro" | "round" | "standings" | "drivers";

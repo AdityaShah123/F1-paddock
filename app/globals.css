@@ -95,8 +95,8 @@
   }
   html,
   body {
-    background: #020203;
-    color: #e8e2d4;
+    background: #151b26;
+    color: #f4efe4;
   }
   body {
     font-family: var(--font-archivo), "Archivo", ui-sans-serif, system-ui, sans-serif;
@@ -129,4 +129,10 @@
   overflow: visible;
   clip: auto;
   white-space: normal;
+}
+
+.portrait-img {
+  filter: grayscale(1) contrast(1.18) brightness(1.05);
+  mix-blend-mode: multiply;
+  opacity: 0.92;
 }

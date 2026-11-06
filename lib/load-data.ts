@@ -3,6 +3,7 @@ import type {
   DataIndex,
   Driver,
   PaddockData,
+  ResultsFile,
   Season,
   SeasonArc,
   Standings,
@@ -22,12 +23,13 @@ export async function loadCircuit(circuitId: string): Promise<Circuit> {
 }
 
 export async function loadPaddock(defaultCircuitId = "spa"): Promise<PaddockData> {
-  const [index, season, standings, arc, teamsFile] = await Promise.all([
+  const [index, season, standings, arc, teamsFile, results] = await Promise.all([
     getJson<DataIndex>("/data/index.json"),
     getJson<Season>("/data/season.json"),
     getJson<Standings>("/data/standings.json"),
     getJson<SeasonArc>("/data/season-arc.json"),
     getJson<TeamsFile>("/data/teams.json"),
+    getJson<ResultsFile>("/data/results.json"),
   ]);
 
   const circuitId = index.circuits.includes(defaultCircuitId)
@@ -49,17 +51,6 @@ export async function loadPaddock(defaultCircuitId = "spa"): Promise<PaddockData
     teams: teamsFile.teams,
     drivers,
     circuit,
+    results,
   };
-}
-
-export function circuitLabel(
-  circuitId: string,
-  season: Season,
-  fallbackName?: string,
-) {
-  const round = season.rounds.find((item) => item.circuitId === circuitId);
-  if (!round) {
-    return fallbackName ?? circuitId;
-  }
-  return `${round.locality}`;
 }

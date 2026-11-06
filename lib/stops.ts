@@ -44,6 +44,17 @@ export function nearestStop(stops: ContentStop[], t: number) {
   return { stop: best, distance: bestDistance, arrival, proximity };
 }
 
+export function activeRound(stops: ContentStop[], t: number) {
+  const rounds = stops.filter((stop) => stop.kind === "round");
+  if (!rounds.length) return null;
+  let current = rounds[0];
+  for (const stop of rounds) {
+    if (stop.kind !== "round") continue;
+    if (t + 0.025 >= stop.t) current = stop;
+  }
+  return current.kind === "round" ? current.round : null;
+}
+
 export function brakeAmount(stops: ContentStop[], t: number) {
   let nearest = 1;
   for (const stop of stops) {

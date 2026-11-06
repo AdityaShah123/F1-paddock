@@ -9,18 +9,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { DriverForm, HelmetMark } from "@/components/driver-form";
+import { DriverChip } from "@/components/driver-chip";
+import { PodiumBars } from "@/components/podium";
+import { RaceLeaderboard } from "@/components/race-leaderboard";
 import { getHudSnap, subscribeHud } from "@/lib/lap-store";
-import { circuitLabel } from "@/lib/load-data";
-import { nearestStop } from "@/lib/stops";
+import { circuitSwitcherLabel, circuitSwitcherPlace, racePlace, raceTitle } from "@/lib/names";
+import { activeRound, nearestStop } from "@/lib/stops";
 import { patternDash, teamById } from "@/lib/teams";
-import type {
-  Circuit,
-  ContentStop,
-  Driver,
-  PaddockData,
-  SeasonRound,
-} from "@/lib/types";
+import type { Circuit, ContentStop, PaddockData, SeasonRound } from "@/lib/types";
+
+const PURPLE = "#C44DFF";
 
 function formatDate(iso: string) {
   const date = new Date(`${iso}T12:00:00Z`);
@@ -47,50 +45,64 @@ function upcomingCopy(round: SeasonRound) {
   return "This round has not been run. The season is live, not archived.";
 }
 
-function IntroCard({ circuit, season }: { circuit: Circuit; season: PaddockData["season"] }) {
+function FastestLapBadge({
+  data,
+  round,
+}: {
+  data: PaddockData;
+  round: SeasonRound;
+}) {
+  const fl = data.results.rounds[String(round.round)]?.fastestLap;
+  if (!fl) return null;
+  const driver = data.drivers.find((item) => item.driverId === fl.driverId);
+  return (
+    <p className="mt-3 font-mono text-sm tabular-nums" style={{ color: PURPLE }}>
+      Fastest lap {fl.time} · {fl.code}
+      {driver ? ` ${driver.permanentNumber}` : ""}
+    </p>
+  );
+}
+
+function IntroCard({ circuit, data }: { circuit: Circuit; data: PaddockData }) {
+  const round = data.season.rounds.find((item) => item.circuitId === circuit.circuitId);
   return (
     <div>
-      <p className="font-mono text-[11px] tracking-[0.18em] text-[#E8E2D4]/55">
-        {season.year} · {season.completedRounds} OF {season.totalRounds} RUN
+      <p className="font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/70">
+        {data.season.year} · {data.season.completedRounds} OF {data.season.totalRounds} RUN
       </p>
       <h2
-        className="mt-3 max-w-[16ch] text-[clamp(2.2rem,7vw,5.4rem)] leading-[0.86] text-[#E8E2D4]"
-        style={{ fontVariationSettings: '"wdth" 72', fontWeight: 650 }}
+        className="mt-2 max-w-[18ch] text-[clamp(1.8rem,5.4vw,3.8rem)] leading-[0.92] text-[#F4EFE4]"
+        style={{ fontVariationSettings: '"wdth" 78', fontWeight: 650 }}
       >
-        {circuit.name.replace("Circuit de ", "").replace("International Circuit", "").trim()}
+        {round ? raceTitle(round) : circuit.name}
       </h2>
-      <p className="mt-4 font-mono text-sm text-[#E8E2D4]/75">
-        {circuit.lengthMetres.toLocaleString()} M · REAL LINE · Y UP
+      <p className="mt-2 font-mono text-sm text-[#F4EFE4]/80">
+        {round ? racePlace(round) : circuit.country} · {circuit.lengthMetres.toLocaleString()} m
       </p>
-      <p className="mt-3 max-w-md text-sm leading-6 text-[#E8E2D4]/72">
+      <p className="mt-3 max-w-md text-sm leading-6 text-[#F4EFE4]/85">
         Antonelli leads by 119 with four races left. Travel the lap. The season is placed on it.
       </p>
     </div>
   );
 }
 
-function RoundCard({
-  round,
-  drivers,
-}: {
-  round: SeasonRound;
-  drivers: Driver[];
-}) {
-  const winner = drivers.find((driver) => driver.driverId === round.winner?.driverId);
+function RoundCard({ round, data }: { round: SeasonRound; data: PaddockData }) {
   if (round.status !== "completed") {
     return (
       <div>
-        <p className="font-mono text-[11px] tracking-[0.18em] text-[#E8E2D4]/55">
+        <p className="font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/70">
           ROUND {round.round} · UNRUN
         </p>
         <h2
-          className="mt-3 max-w-[14ch] text-[clamp(2rem,6vw,4.4rem)] leading-[0.88] text-[#E8E2D4]/80"
+          className="mt-2 max-w-[18ch] text-[clamp(1.7rem,5vw,3.4rem)] leading-[0.92] text-[#F4EFE4]"
           style={{ fontVariationSettings: '"wdth" 78', fontWeight: 620 }}
         >
-          {round.raceName.replace("Grand Prix", "").trim()}
+          {raceTitle(round)}
         </h2>
-        <p className="mt-3 font-mono text-xs text-[#E8E2D4]/60">{formatDate(round.date)} · {round.locality}</p>
-        <p className="mt-4 max-w-md border border-dashed border-[#E8E2D4]/25 bg-[#E8E2D4]/5 p-4 text-sm leading-6 text-[#E8E2D4]/78">
+        <p className="mt-2 font-mono text-xs text-[#F4EFE4]/75">
+          {formatDate(round.date)} · {racePlace(round)}
+        </p>
+        <p className="mt-4 max-w-md border border-dashed border-[#F4EFE4]/30 bg-[#F4EFE4]/8 p-4 text-sm leading-6 text-[#F4EFE4]/85">
           {upcomingCopy(round)}
         </p>
       </div>
@@ -99,32 +111,20 @@ function RoundCard({
 
   return (
     <div>
-      <p className="font-mono text-[11px] tracking-[0.18em] text-[#E8E2D4]/55">
+      <p className="font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/70">
         ROUND {round.round} · CHEQUERED
       </p>
       <h2
-        className="mt-3 max-w-[14ch] text-[clamp(2rem,6vw,4.4rem)] leading-[0.88] text-[#E8E2D4]"
+        className="mt-2 max-w-[18ch] text-[clamp(1.7rem,5vw,3.4rem)] leading-[0.92] text-[#F4EFE4]"
         style={{ fontVariationSettings: '"wdth" 78', fontWeight: 620 }}
       >
-        {round.locality}
+        {raceTitle(round)}
       </h2>
-      <p className="mt-3 font-mono text-xs text-[#E8E2D4]/60">
-        {formatDate(round.date)} · {round.raceName}
+      <p className="mt-2 font-mono text-xs text-[#F4EFE4]/75">
+        {formatDate(round.date)} · {racePlace(round)}
       </p>
-      <p className="mt-5 text-sm text-[#E8E2D4]/80">
-        {winner ? `${winner.givenName} ${winner.familyName}` : round.winner?.code} took it
-        {round.winner?.code ? ` · ${round.winner.code}` : ""}.
-      </p>
-      <ol className="mt-3 space-y-1 font-mono text-xs text-[#E8E2D4]/70">
-        {round.podium.map((entry) => {
-          const driver = drivers.find((item) => item.driverId === entry.driverId);
-          return (
-            <li key={entry.driverId}>
-              P{entry.position} {driver?.code ?? entry.driverId}
-            </li>
-          );
-        })}
-      </ol>
+      <PodiumBars round={round} drivers={data.drivers} teams={data.teams} />
+      <FastestLapBadge data={data} round={round} />
     </div>
   );
 }
@@ -133,21 +133,21 @@ function StandingsCard({ data }: { data: PaddockData }) {
   const top = data.standings.drivers.slice(0, 8);
   const maxPoints = Math.max(...data.arc.series.map((series) => series.cumulative.at(-1) ?? 0), 1);
   const width = 420;
-  const height = 148;
+  const height = 132;
 
   return (
     <div className="max-w-xl">
-      <p className="font-mono text-[11px] tracking-[0.18em] text-[#E8E2D4]/55">
+      <p className="font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/70">
         THROUGH ROUND {data.standings.throughRound}
       </p>
       <h2
-        className="mt-3 text-[clamp(2rem,5vw,3.6rem)] leading-[0.9] text-[#E8E2D4]"
-        style={{ fontVariationSettings: '"wdth" 70', fontWeight: 650 }}
+        className="mt-2 text-[clamp(1.8rem,4.5vw,3.2rem)] leading-[0.92] text-[#F4EFE4]"
+        style={{ fontVariationSettings: '"wdth" 74', fontWeight: 650 }}
       >
         Antonelli, then daylight
       </h2>
       <svg
-        className="mt-5 w-full max-w-[420px]"
+        className="mt-4 w-full max-w-[420px]"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label="Cumulative points through nineteen rounds"
@@ -169,42 +169,21 @@ function StandingsCard({ data }: { data: PaddockData }) {
               d={d}
               fill="none"
               stroke={team.colour}
-              strokeWidth={highlighted ? 2.1 : 1}
-              strokeOpacity={highlighted ? 0.95 : 0.18}
+              strokeWidth={highlighted ? 2.2 : 1}
+              strokeOpacity={highlighted ? 0.95 : 0.22}
               strokeDasharray={patternDash(team.pattern)}
             />
           );
         })}
       </svg>
-      <ol className="mt-4 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-        {top.map((driver) => {
-          const team = teamById(data.teams, driver.constructorId);
-          return (
-            <li key={driver.driverId} className="flex items-center gap-2 text-sm">
-              <span className="w-4 font-mono text-[11px] text-[#E8E2D4]/50">{driver.position}</span>
-              <span
-                className="size-2.5 shrink-0"
-                style={{
-                  background: team.pattern === "outline" ? "transparent" : team.colour,
-                  boxShadow: `inset 0 0 0 ${team.pattern === "outline" ? 1.5 : 0}px ${team.colour}`,
-                  outline: team.pattern === "dot" ? `1.5px dotted ${team.accent}` : undefined,
-                  backgroundImage:
-                    team.pattern === "stripe"
-                      ? `repeating-linear-gradient(45deg, ${team.colour}, ${team.colour} 4px, ${team.accent} 4px, ${team.accent} 7px)`
-                      : undefined,
-                }}
-                aria-hidden
-              />
-              <span className="font-mono tracking-[0.12em]">{driver.code}</span>
-              <span className="text-[#E8E2D4]/55">{driver.familyName}</span>
-              <span className="ml-auto font-mono text-[#E8E2D4]/80">{driver.points}</span>
-            </li>
-          );
-        })}
+      <ol className="mt-3 space-y-1">
+        {top.map((driver) => (
+          <li key={driver.driverId} className="flex items-center justify-between gap-2">
+            <DriverChip driver={driver} teams={data.teams} compact />
+            <span className="font-mono tabular-nums text-[#F4EFE4]">{driver.points}</span>
+          </li>
+        ))}
       </ol>
-      <p className="mt-4 max-w-md text-xs leading-5 text-[#E8E2D4]/55">
-        Colour is the team, never the driver. Audi and Ferrari are 16 apart in RGB — the dash pattern is the tiebreaker.
-      </p>
     </div>
   );
 }
@@ -218,32 +197,16 @@ function DriversCard({ data }: { data: PaddockData }) {
 
   return (
     <div className="max-w-3xl">
-      <p className="font-mono text-[11px] tracking-[0.18em] text-[#E8E2D4]/55">GRID FORMS</p>
+      <p className="font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/70">THE GRID</p>
       <h2
-        className="mt-3 text-[clamp(2rem,5vw,3.6rem)] leading-[0.9] text-[#E8E2D4]"
-        style={{ fontVariationSettings: '"wdth" 70', fontWeight: 650 }}
+        className="mt-2 text-[clamp(1.8rem,4.5vw,3.2rem)] leading-[0.92] text-[#F4EFE4]"
+        style={{ fontVariationSettings: '"wdth" 74', fontWeight: 650 }}
       >
-        Speed as a portrait
+        Helmet, number, face
       </h2>
-      <p className="mt-3 max-w-md text-sm leading-6 text-[#E8E2D4]/70">
-        Each shape is that driver’s downsampled speed trace, coloured by the team and broken with the team pattern so the two reds never collapse.
-      </p>
-      <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
-        {ordered.map((driver, index) => (
-          <div key={driver.driverId} className="flex flex-col items-center">
-            <DriverForm
-              driver={driver}
-              teams={data.teams}
-              size={index === 0 ? 120 : 96}
-              featured={index === 0}
-            />
-            <HelmetMark
-              number={driver.permanentNumber}
-              colour={teamById(data.teams, driver.constructorId).colour}
-              accent={teamById(data.teams, driver.constructorId).accent}
-              pattern={teamById(data.teams, driver.constructorId).pattern}
-            />
-          </div>
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {ordered.map((driver) => (
+          <DriverChip key={driver.driverId} driver={driver} teams={data.teams} />
         ))}
       </div>
     </div>
@@ -264,27 +227,26 @@ export function Hud({
   circuitLoading: boolean;
 }) {
   const snap = useSyncExternalStore(subscribeHud, getHudSnap, getHudSnap);
-  const { stop, proximity, arrival } = nearestStop(stops, snap.t);
-  const opacity = 0.22 + proximity * 0.78;
+  const { stop, proximity } = nearestStop(stops, snap.t);
+  const opacity = 0.45 + proximity * 0.55;
+  const travelRound = activeRound(stops, snap.t);
+  const race = travelRound ? data.results.rounds[String(travelRound.round)] ?? null : null;
 
   const panel = useMemo(() => {
-    if (stop.kind === "intro") return <IntroCard circuit={circuit} season={data.season} />;
+    if (stop.kind === "intro") return <IntroCard circuit={circuit} data={data} />;
     if (stop.kind === "standings") return <StandingsCard data={data} />;
     if (stop.kind === "drivers") return <DriversCard data={data} />;
-    return <RoundCard round={stop.round} drivers={data.drivers} />;
+    return <RoundCard round={stop.round} data={data} />;
   }, [stop, circuit, data]);
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-4 pb-16 sm:p-7 sm:pb-16">
+    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-between p-4 pb-16 sm:p-6 sm:pb-16">
       <div className="flex items-start justify-between gap-4">
         <div
-          className="pointer-events-auto max-w-[min(100%,42rem)] transition-opacity duration-200"
+          className="pointer-events-auto max-w-[min(100%,40rem)] rounded-sm bg-[#151B26]/55 p-3 backdrop-blur-[2px] transition-opacity duration-200"
           style={{ opacity }}
         >
           {panel}
-          {arrival ? (
-            <p className="mt-3 font-mono text-[10px] tracking-[0.2em] text-[#E8E2D4]/40">ON THE MARK</p>
-          ) : null}
         </div>
         <CircuitTape
           data={data}
@@ -294,11 +256,17 @@ export function Hud({
         />
       </div>
       <div className="flex items-end justify-between gap-4">
-        <p className="font-mono text-[11px] text-[#E8E2D4]/45">
-          LAP {(snap.t * 100).toFixed(0)}% · SCROLL THE LINE
-        </p>
-        <p className="hidden max-w-xs text-right text-[11px] leading-4 text-[#E8E2D4]/40 sm:block">
-          Straights open the lens. Brake marks pull you in. Four pins still dark.
+        <RaceLeaderboard
+          race={race}
+          teams={data.teams}
+          emptyLabel={
+            travelRound?.status === "upcoming"
+              ? "Classification waits until lights-out at this round."
+              : "Scroll the lap to read a race."
+          }
+        />
+        <p className="hidden font-mono text-[11px] text-[#F4EFE4]/55 sm:block">
+          LAP {(snap.t * 100).toFixed(0)}%
         </p>
       </div>
     </div>
@@ -318,13 +286,18 @@ function CircuitTape({
 }) {
   const items = data.index.circuits.map((id) => {
     const round = data.season.rounds.find((item) => item.circuitId === id);
-    return { id, label: circuitLabel(id, data.season, id), round };
+    return {
+      id,
+      title: circuitSwitcherLabel(id, data.season, id),
+      place: circuitSwitcherPlace(id, data.season),
+      round,
+    };
   });
 
   return (
     <div className="pointer-events-auto">
-      <div className="hidden max-h-[70vh] w-44 flex-col overflow-y-auto border-l border-[#E8E2D4]/15 pl-3 md:flex">
-        <p className="font-mono text-[10px] tracking-[0.18em] text-[#E8E2D4]/40">CIRCUITS</p>
+      <div className="hidden max-h-[62vh] w-56 flex-col overflow-y-auto border-l border-[#F4EFE4]/20 bg-[#151B26]/70 pl-3 backdrop-blur-sm md:flex">
+        <p className="font-mono text-[10px] tracking-[0.18em] text-[#F4EFE4]/55">CIRCUITS</p>
         {items.map((item) => {
           const active = item.id === currentId;
           return (
@@ -332,46 +305,44 @@ function CircuitTape({
               key={item.id}
               type="button"
               onClick={() => onSelect(item.id)}
-              className="mt-2 text-left font-[family-name:var(--font-archivo)] text-sm transition-colors"
-              style={{
-                color: active ? "#E8E2D4" : "rgba(232,226,212,0.48)",
-                fontVariationSettings: active ? '"wdth" 118' : '"wdth" 92',
-              }}
+              className="mt-2 text-left text-sm leading-5 transition-colors"
+              style={{ color: active ? "#F4EFE4" : "rgba(244,239,228,0.62)" }}
             >
-              {item.label}
-              {item.id === "sepang" ? (
-                <span className="block font-mono text-[9px] tracking-[0.12em] text-[#E8E2D4]/40">
-                  BAHRAIN GP · MALAYSIA
-                </span>
-              ) : null}
+              <span className="block" style={{ fontVariationSettings: active ? '"wdth" 110' : '"wdth" 92' }}>
+                {item.title}
+              </span>
+              <span className="block font-mono text-[10px] tracking-[0.08em] text-[#F4EFE4]/50">
+                {item.place}
+              </span>
             </button>
           );
         })}
-        {loading ? <p className="mt-3 font-mono text-[10px] text-[#E8E2D4]/40">LOADING LINE…</p> : null}
+        {loading ? <p className="mt-3 font-mono text-[10px] text-[#F4EFE4]/50">LOADING LINE…</p> : null}
       </div>
       <div className="md:hidden">
         <Sheet>
           <SheetTrigger
             nativeButton={false}
             render={
-              <Button variant="outline" className="border-[#E8E2D4]/25 bg-black/40 text-[#E8E2D4]">
+              <Button variant="outline" className="border-[#F4EFE4]/25 bg-[#151B26]/70 text-[#F4EFE4]">
                 Circuits
               </Button>
             }
           />
-          <SheetContent side="right" className="border-[#E8E2D4]/15 bg-[#020203] text-[#E8E2D4]">
+          <SheetContent side="right" className="border-[#F4EFE4]/15 bg-[#151B26] text-[#F4EFE4]">
             <SheetHeader>
-              <SheetTitle className="text-[#E8E2D4]">Circuits with a racing line</SheetTitle>
+              <SheetTitle className="text-[#F4EFE4]">Circuits with a racing line</SheetTitle>
             </SheetHeader>
             <div className="flex flex-col gap-2 p-4">
               {items.map((item) => (
                 <Button
                   key={item.id}
                   variant={item.id === currentId ? "secondary" : "ghost"}
-                  className="justify-start text-[#E8E2D4]"
+                  className="h-auto justify-start whitespace-normal py-2 text-left text-[#F4EFE4]"
                   onClick={() => onSelect(item.id)}
                 >
-                  {item.label}
+                  {item.title}
+                  <span className="block font-mono text-[10px] opacity-70">{item.place}</span>
                 </Button>
               ))}
             </div>
