@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Prebaked static data layer for the F1 Paddock site",
   "scripts": {
-    "prebake": "node scripts/prebake.mjs"
+    "prebake": "node scripts/prebake.mjs",
+    "validate": "node scripts/validate.mjs"
   },
   "engines": {
     "node": ">=20"
