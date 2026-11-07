@@ -28,7 +28,7 @@ function Row({
     <li
       className={`flex items-center gap-3 py-2 ${mirrored ? "flex-row-reverse text-right" : ""}`}
     >
-      <Portrait driverId={row.driverId} alt="" size={36} />
+      <Portrait driverId={row.driverId} alt="" size={52} />
       <HelmetMark number={row.permanentNumber} pattern={team.pattern} size={28} />
       <div className="min-w-0 flex-1">
         <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] text-[#F4EFE4]/55">

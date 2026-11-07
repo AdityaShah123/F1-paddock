@@ -73,6 +73,7 @@ export function Portrait({
         width={size}
         height={size}
         className="portrait-img h-full w-full object-cover object-top"
+        style={{ filter: "none" }}
         onError={(event) => {
           event.currentTarget.style.display = "none";
         }}

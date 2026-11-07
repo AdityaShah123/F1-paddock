@@ -132,12 +132,15 @@
 }
 
 .portrait-img {
-  filter: none;
+  /* Full-colour Commons originals — never greyscale */
+  filter: none !important;
+  -webkit-filter: none !important;
 }
 
 .portrait-frame {
   border-radius: 9999px;
-  box-shadow: 0 0 0 1px rgba(244, 239, 228, 0.18);
+  box-shadow: 0 0 0 1px rgba(244, 239, 228, 0.22);
+  background: #1a222e;
 }
 
 @keyframes circuit-rise {

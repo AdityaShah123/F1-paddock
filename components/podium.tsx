@@ -22,7 +22,7 @@ function PodiumColumn({
   return (
     <div className="flex w-[9.5rem] flex-col items-center sm:w-44">
       <div className="flex items-center gap-2">
-        <Portrait driverId={driver.driverId} alt="" size={place === 1 ? 40 : 32} />
+        <Portrait driverId={driver.driverId} alt="" size={place === 1 ? 56 : 48} />
         <HelmetMark number={driver.permanentNumber} pattern={team.pattern} size={place === 1 ? 32 : 26} />
       </div>
       <div
