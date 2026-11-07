@@ -78,7 +78,7 @@ export function PodiumDock({ data, stops }: { data: PaddockData; stops: ContentS
   const fl = round ? data.results.rounds[String(round.round)]?.fastestLap : null;
 
   return (
-    <div className="pointer-events-none shrink-0 border-t border-[#F4EFE4]/12 bg-[#151C28] px-4 py-3 sm:px-8">
+    <div className="pointer-events-none shrink-0 border-t border-[#F4EFE4]/12 bg-[#0A1018] px-4 py-3 sm:px-8">
       {round && round.status === "completed" ? (
         <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-end sm:justify-center sm:gap-10">
           <p className="font-mono text-[10px] tracking-[0.28em] text-[#F4EFE4]/45 sm:mb-6">PODIUM</p>

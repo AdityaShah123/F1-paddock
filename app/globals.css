@@ -95,7 +95,7 @@
   }
   html,
   body {
-    background: #1c2636;
+    background: #0e141c;
     color: #f4efe4;
   }
   body {
@@ -132,5 +132,45 @@
 }
 
 .portrait-img {
-  filter: grayscale(1) contrast(1.12) brightness(0.96);
+  filter: none;
+}
+
+.portrait-frame {
+  border-radius: 9999px;
+  box-shadow: 0 0 0 1px rgba(244, 239, 228, 0.18);
+}
+
+@keyframes circuit-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes nav-settle {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.race-nav {
+  animation: nav-settle 480ms ease-out both;
+}
+
+.race-flag {
+  width: 1.15rem;
+  height: 0.86rem;
+  object-fit: cover;
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(244, 239, 228, 0.28);
+  flex-shrink: 0;
 }

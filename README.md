@@ -6,41 +6,66 @@ The 2026 championship is still live: Antonelli 380, Verstappen 261, Hamilton 259
 
 Not affiliated with Formula 1. [Fan-site guidelines](https://www.formula1.com/en/information/guidelines.4EOKE9RRqevL4niTK9kWyt).
 
-## Run locally (Windows)
+## Pull & run (Windows)
 
-The GitHub / Origin clone only works after the repository exists. Browse: [aditya-devangbhai-shah/kickstart](https://cursor.com/codebase/aditya-devangbhai-shah/kickstart).
-
-In PowerShell:
+Aditya’s working folder:
 
 ```powershell
-git clone https://github.com/aditya-devangbhai-shah/kickstart.git "C:\All Data\Studies\Luma Hackathons\F1 paddock"
 cd "C:\All Data\Studies\Luma Hackathons\F1 paddock"
-git checkout cursor/f1-paddock-circuit-instrument-09a4
+git fetch origin
+git checkout main
+git pull origin main
 npm install
 npm run dev
 ```
 
-If GitHub is not the remote yet, clone from Origin instead:
+Fresh clone (GitHub):
+
+```powershell
+git clone https://github.com/aditya-devangbhai-shah/kickstart.git "C:\All Data\Studies\Luma Hackathons\F1 paddock"
+cd "C:\All Data\Studies\Luma Hackathons\F1 paddock"
+npm install
+npm run dev
+```
+
+Or from Origin:
 
 ```powershell
 git clone https://origin.cursor.com/git/aditya-devangbhai-shah/kickstart.git "C:\All Data\Studies\Luma Hackathons\F1 paddock"
+cd "C:\All Data\Studies\Luma Hackathons\F1 paddock"
+npm install
+npm run dev
 ```
 
-Open [http://localhost:43217](http://localhost:43217). Five red lights, then the pause, then Spa.
+Open [http://localhost:43217](http://localhost:43217). Five red lights, then Spa. Needs **Node 20+**. No API keys or secrets.
 
-Needs Node 20+.
+## Deploy (Vercel)
+
+From the same folder:
+
+```powershell
+npx vercel
+```
+
+Follow the prompts. Production:
+
+```powershell
+npx vercel --prod
+```
+
+`vercel.json` already pins the project. No env vars required for local or deploy.
 
 ## What you are looking at
 
 - **Lights-out** is the loader. It does not replay in the same tab.
-- **Scroll** drives the camera along OpenF1 position telemetry. The racing line is a lit ribbon: gold/cream on the gas, red on the brakes, and Spa actually climbs.
-- **Rounds** sit on the line. Each completed stop has a podium bar plot (P1 tallest) plus a purple fastest lap. Four unlit pins (Interlagos, Vegas, Losail, Yas Marina) are empty on purpose.
-- **This race** is the top 10, five names left and five right, flanking the circuit.
+- **Scroll** drives the camera along OpenF1 position telemetry. The racing line is a continuous lit tube on an asphalt bed — gold/cream on the gas, red on the brakes.
+- **Race nav** is two rows of localities with country flags. The active GP is the hero track; other circuit silhouettes sit in the **orbit** rail on the right.
+- **Rounds** sit on the line. Each completed stop has a podium bar plot (P1 tallest) below the track, plus a purple fastest lap. Four unlit pins (Interlagos, Vegas, Losail, Yas Marina) are empty on purpose.
+- **This race** is the top 10, five names left and five right, flanking the circuit — full-colour Commons portraits.
 - **Standings** use `season-arc.json`. Colour is the team. Pattern / driver code breaks Audi vs Ferrari.
-- **Drivers** show a greyscale Commons portrait, a generated helmet, and the race number. Colour lives on the podium bars only.
-- **Circuit tape** uses the full race name and locality, never slugs. Bahrain GP is Sepang.
+- **Drivers** show a colour Commons portrait, a generated helmet, and the race number.
 
-The browser never calls OpenF1 `car_data` or `location`. Everything under `public/data/` is prebaked. Portraits are cached in `public/portraits/` (Wikimedia Commons / Wikipedia, typically CC BY-SA).
+The browser never calls OpenF1 `car_data` or `location`. Everything under `public/data/` is prebaked. Portraits are cached in `public/portraits/` (Wikimedia Commons / Wikipedia, typically CC BY-SA). Flags are local SVGs in `public/flags/`.
 
 `prefers-reduced-motion: reduce` swaps the camera for a static map and readable copy.
 

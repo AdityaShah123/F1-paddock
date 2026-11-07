@@ -60,12 +60,18 @@ export function ReducedJourney({
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-12 text-[#F4EFE4]">
-      <p className="font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/60">
+      <p
+        className="text-[clamp(2.4rem,8vw,4.6rem)] leading-[0.85] text-[#F4EFE4]"
+        style={{ fontVariationSettings: '"wdth" 68', fontWeight: 680 }}
+      >
+        Paddock
+      </p>
+      <p className="mt-3 font-mono text-[11px] tracking-[0.18em] text-[#F4EFE4]/60">
         2026 · {data.season.completedRounds} OF {data.season.totalRounds} RUN
       </p>
       <h1
-        className="mt-4 text-[clamp(2.2rem,7vw,4.2rem)] leading-[0.9]"
-        style={{ fontVariationSettings: '"wdth" 76', fontWeight: 650 }}
+        className="mt-2 text-[clamp(1.6rem,5vw,2.8rem)] leading-[0.95]"
+        style={{ fontVariationSettings: '"wdth" 80', fontWeight: 560 }}
       >
         {here ? raceTitle(here) : circuit.name}
       </h1>
@@ -87,7 +93,7 @@ export function ReducedJourney({
             className="border border-[#F4EFE4]/25 px-2 py-1 text-left text-xs"
             style={{
               background: id === circuit.circuitId ? "#F4EFE4" : "transparent",
-              color: id === circuit.circuitId ? "#1C2636" : "#F4EFE4",
+              color: id === circuit.circuitId ? "#0E141C" : "#F4EFE4",
             }}
           >
             <span className="block">{circuitSwitcherLabel(id, data.season, id)}</span>

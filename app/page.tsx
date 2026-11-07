@@ -3,7 +3,7 @@ import { Experience } from "@/components/experience";
 
 export default function Home() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#1C2636]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#0E141C]" />}>
       <Experience />
     </Suspense>
   );

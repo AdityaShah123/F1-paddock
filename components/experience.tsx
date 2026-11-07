@@ -16,7 +16,7 @@ import type { Circuit, PaddockData } from "@/lib/types";
 
 const CircuitCanvas = dynamic(() => import("@/components/circuit-canvas"), {
   ssr: false,
-  loading: () => <div className="h-full w-full bg-[#1C2636]" />,
+  loading: () => <div className="h-full w-full bg-[#0E141C]" />,
 });
 
 function usePrefersReducedMotion() {
@@ -122,7 +122,7 @@ export function Experience() {
 
   if (error && !data) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-[#1C2636] px-6 text-[#F4EFE4]">
+      <main className="flex min-h-screen flex-col items-center justify-center bg-[#0E141C] px-6 text-[#F4EFE4]">
         <h1 className="text-3xl" style={{ fontVariationSettings: '"wdth" 80', fontWeight: 620 }}>
           Data did not arrive
         </h1>
@@ -137,7 +137,7 @@ export function Experience() {
   const ready = Boolean(data && circuit);
 
   return (
-    <div className="bg-[#1C2636] text-[#F4EFE4]">
+    <div className="bg-[#0E141C] text-[#F4EFE4]">
       <a
         href="#season-copy"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-[#E8E2D4] focus:px-3 focus:py-2 focus:text-[#020203]"
@@ -148,7 +148,7 @@ export function Experience() {
         <LightsOut ready={ready} onComplete={() => setPhase("drive")} />
       ) : null}
       {phase === "drive" && !ready ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#1C2636]">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#0E141C]">
           <p className="font-mono text-xs tracking-[0.22em] text-[#E8E2D4]/60">FORMATION LAP</p>
         </div>
       ) : null}
@@ -161,7 +161,7 @@ export function Experience() {
       {data && circuit && !reducedMotion ? (
         <>
           <div className="h-[920vh]" aria-hidden="true" />
-          <div className="fixed inset-0 flex flex-col bg-[#1A2332]">
+          <div className="fixed inset-0 flex flex-col bg-[#0E141C]">
             <div className="relative min-h-0 flex-1">
               <CircuitCanvas circuit={circuit} stops={stops} mobile={mobile} />
               {phase === "drive" ? (

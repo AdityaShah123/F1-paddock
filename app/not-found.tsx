@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#1C2636] px-6 text-[#F4EFE4]">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#0E141C] px-6 text-[#F4EFE4]">
       <p className="font-mono text-xs tracking-[0.2em] text-[#E8E2D4]/50">OUT OF THE PIT LANE</p>
       <h1 className="mt-4 text-4xl" style={{ fontVariationSettings: '"wdth" 72', fontWeight: 650 }}>
         No such corner

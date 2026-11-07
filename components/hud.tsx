@@ -9,8 +9,10 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { CircuitRail } from "@/components/circuit-rail";
 import { DriverChip } from "@/components/driver-chip";
 import { ClassificationColumn } from "@/components/race-leaderboard";
+import { flagSrc } from "@/lib/flags";
 import { getHudSnap, subscribeHud } from "@/lib/lap-store";
 import { circuitSwitcherLabel, circuitSwitcherPlace, racePlace, raceTitle } from "@/lib/names";
 import { activeRound, nearestStop } from "@/lib/stops";
@@ -46,12 +48,18 @@ function IntroCard({ circuit, data }: { circuit: Circuit; data: PaddockData }) {
   const round = data.season.rounds.find((item) => item.circuitId === circuit.circuitId);
   return (
     <div className="text-center">
-      <p className="font-mono text-[11px] tracking-[0.32em] text-[#F4EFE4]/55">
+      <p
+        className="text-[clamp(2.8rem,7vw,5.2rem)] leading-[0.82] tracking-[-0.02em] text-[#F4EFE4]"
+        style={{ fontVariationSettings: '"wdth" 68', fontWeight: 680 }}
+      >
+        Paddock
+      </p>
+      <p className="mt-3 font-mono text-[11px] tracking-[0.32em] text-[#F4EFE4]/55">
         {data.season.year} · {data.season.completedRounds} OF {data.season.totalRounds} RUN
       </p>
       <h2
-        className="mt-3 text-[clamp(2.4rem,6vw,4.6rem)] leading-[0.86] text-[#F4EFE4]"
-        style={{ fontVariationSettings: '"wdth" 72', fontWeight: 650 }}
+        className="mt-2 text-[clamp(1.55rem,3.6vw,2.6rem)] leading-[0.92] text-[#F4EFE4]/92"
+        style={{ fontVariationSettings: '"wdth" 78', fontWeight: 560 }}
       >
         {round ? raceTitle(round) : circuit.name}
       </h2>
@@ -220,7 +228,7 @@ export function Hud({
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
-      <div className="absolute inset-x-0 top-0 px-4 pt-3 sm:px-6">
+      <div className="absolute inset-x-0 top-0 px-3 pt-2 sm:px-5 sm:pt-3">
         <CircuitTape
           data={data}
           currentId={circuit.circuitId}
@@ -231,7 +239,7 @@ export function Hud({
 
       {showFlanks ? (
         <>
-          <aside className="absolute top-1/2 left-4 hidden w-[17.5rem] -translate-y-1/2 md:block lg:left-7">
+          <aside className="absolute top-[28%] left-3 hidden w-[15.5rem] md:block lg:left-5 xl:w-[17rem]">
             <ClassificationColumn
               rows={left}
               race={race}
@@ -241,7 +249,7 @@ export function Hud({
               label="1–5"
             />
           </aside>
-          <aside className="absolute top-1/2 right-4 hidden w-[17.5rem] -translate-y-1/2 md:block lg:right-7">
+          <aside className="absolute top-[28%] right-3 hidden w-[15.5rem] md:block lg:right-[6.5rem] xl:right-[7.75rem] xl:w-[17rem]">
             <ClassificationColumn
               rows={right}
               race={race}
@@ -254,14 +262,21 @@ export function Hud({
         </>
       ) : null}
 
+      <CircuitRail
+        circuitIds={data.index.circuits}
+        currentId={circuit.circuitId}
+        season={data.season}
+        onSelect={onSelectCircuit}
+      />
+
       <div
-        className="absolute inset-x-[20%] top-[11%] hidden transition-opacity duration-200 md:block"
+        className="absolute inset-x-[18%] top-[16%] hidden transition-opacity duration-200 md:block"
         style={{ opacity }}
       >
         {panel}
       </div>
       <div
-        className="absolute inset-x-4 top-14 transition-opacity duration-200 md:hidden"
+        className="absolute inset-x-4 top-[7.5rem] transition-opacity duration-200 md:hidden"
         style={{ opacity }}
       >
         {panel}
@@ -298,60 +313,92 @@ function CircuitTape({
       id,
       title: circuitSwitcherLabel(id, data.season, id),
       place: circuitSwitcherPlace(id, data.season),
+      country: round?.country ?? "",
       round,
     };
   });
 
+  const mid = Math.ceil(items.length / 2);
+  const rows = [items.slice(0, mid), items.slice(mid)];
+
   return (
-    <div className="pointer-events-auto">
-      <div className="hidden items-baseline gap-5 overflow-x-auto pb-1 md:flex">
-        {items.map((item) => {
-          const active = item.id === currentId;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onSelect(item.id)}
-              className="shrink-0 text-left"
-              style={{ color: active ? "#F4EFE4" : "rgba(244,239,228,0.38)" }}
-            >
-              <span
-                className="block font-mono text-[10px] tracking-[0.16em]"
-                style={{ fontVariationSettings: active ? '"wdth" 110' : '"wdth" 90' }}
-              >
-                {item.place.toUpperCase()}
-              </span>
-            </button>
-          );
-        })}
-        {loading ? <p className="font-mono text-[10px] tracking-[0.16em] text-[#F4EFE4]/40">LINE…</p> : null}
+    <div className="pointer-events-auto race-nav">
+      <div className="hidden flex-col gap-2.5 md:flex">
+        {rows.map((row, rowIndex) => (
+          <div
+            key={rowIndex}
+            className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 lg:gap-x-5"
+          >
+            {row.map((item) => {
+              const active = item.id === currentId;
+              const flag = flagSrc(item.country);
+              const label =
+                item.id === "sepang" ? "KUALA LUMPUR" : item.place.toUpperCase();
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onSelect(item.id)}
+                  className="inline-flex items-center gap-1.5 transition-colors duration-200"
+                  style={{ color: active ? "#F4EFE4" : "rgba(244,239,228,0.42)" }}
+                  aria-current={active ? "true" : undefined}
+                >
+                  {flag ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={flag} alt="" className="race-flag" width={17} height={13} />
+                  ) : null}
+                  <span
+                    className="font-mono text-[10px] tracking-[0.14em] lg:text-[11px]"
+                    style={{
+                      fontVariationSettings: active ? '"wdth" 112' : '"wdth" 92',
+                      textDecoration: active ? "underline" : "none",
+                      textUnderlineOffset: "0.28em",
+                      textDecorationThickness: "1px",
+                    }}
+                  >
+                    {label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+        {loading ? (
+          <p className="text-center font-mono text-[10px] tracking-[0.16em] text-[#F4EFE4]/40">
+            LINE…
+          </p>
+        ) : null}
       </div>
       <div className="flex justify-end md:hidden">
         <Sheet>
-          <SheetTrigger
-            nativeButton={false}
-            render={
-              <Button variant="outline" className="border-[#F4EFE4]/20 bg-transparent text-[#F4EFE4]">
-                Circuits
-              </Button>
-            }
-          />
-          <SheetContent side="right" className="border-[#F4EFE4]/15 bg-[#1C2636] text-[#F4EFE4]">
+          <SheetTrigger className="inline-flex h-9 items-center border border-[#F4EFE4]/20 bg-transparent px-3 text-sm text-[#F4EFE4]">
+            Circuits
+          </SheetTrigger>
+          <SheetContent side="right" className="border-[#F4EFE4]/15 bg-[#0E141C] text-[#F4EFE4]">
             <SheetHeader>
               <SheetTitle className="text-[#F4EFE4]">Circuits with a racing line</SheetTitle>
             </SheetHeader>
             <div className="flex flex-col gap-2 p-4">
-              {items.map((item) => (
-                <Button
-                  key={item.id}
-                  variant={item.id === currentId ? "secondary" : "ghost"}
-                  className="h-auto justify-start whitespace-normal py-2 text-left text-[#F4EFE4]"
-                  onClick={() => onSelect(item.id)}
-                >
-                  {item.title}
-                  <span className="block font-mono text-[10px] opacity-70">{item.place}</span>
-                </Button>
-              ))}
+              {items.map((item) => {
+                const flag = flagSrc(item.country);
+                return (
+                  <Button
+                    key={item.id}
+                    variant={item.id === currentId ? "secondary" : "ghost"}
+                    className="h-auto justify-start gap-2 whitespace-normal py-2 text-left text-[#F4EFE4]"
+                    onClick={() => onSelect(item.id)}
+                  >
+                    {flag ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={flag} alt="" className="race-flag" width={17} height={13} />
+                    ) : null}
+                    <span>
+                      {item.title}
+                      <span className="block font-mono text-[10px] opacity-70">{item.place}</span>
+                    </span>
+                  </Button>
+                );
+              })}
             </div>
           </SheetContent>
         </Sheet>

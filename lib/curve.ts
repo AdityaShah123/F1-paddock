@@ -21,7 +21,7 @@ export function circuitCurve(circuit: Circuit) {
     ([x, y, z]) => new THREE.Vector3(x, y * boost, z),
   );
   return {
-    curve: new THREE.CatmullRomCurve3(points, true, "catmullrom", 0.12),
+    curve: new THREE.CatmullRomCurve3(points, true, "catmullrom", 0.35),
     boost,
   };
 }

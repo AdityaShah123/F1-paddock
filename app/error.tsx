@@ -10,7 +10,7 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#1C2636] px-6 text-[#F4EFE4]">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#0E141C] px-6 text-[#F4EFE4]">
       <h1 className="text-3xl" style={{ fontVariationSettings: '"wdth" 80', fontWeight: 620 }}>
         The lap broke
       </h1>
