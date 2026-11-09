@@ -26,14 +26,20 @@ function Row({
 
   return (
     <li
-      className={`flex items-center gap-3 py-2 ${mirrored ? "flex-row-reverse text-right" : ""}`}
+      className={`timing-row flex items-center gap-2.5 py-1.5 ${mirrored ? "flex-row-reverse pr-2 text-right" : "pl-2"}`}
+      style={{ ["--team" as string]: team.colour }}
     >
-      <Portrait driverId={row.driverId} alt="" size={52} />
-      <HelmetMark number={row.permanentNumber} pattern={team.pattern} size={28} />
+      <span
+        className={`flex h-7 w-7 shrink-0 items-center justify-center font-mono text-[13px] tabular-nums ${row.position === 1 ? "bg-[#F4EFE4] text-[#0A0F16]" : "bg-[#F4EFE4]/[0.08] text-[#F4EFE4]"}`}
+      >
+        {row.position}
+      </span>
+      <Portrait driverId={row.driverId} alt="" size={46} />
+      <span className="hidden md:inline-flex">
+        <HelmetMark number={row.permanentNumber} pattern={team.pattern} size={26} />
+      </span>
       <div className="min-w-0 flex-1">
-        <p className="font-mono text-[11px] tabular-nums tracking-[0.18em] text-[#F4EFE4]/55">
-          P{row.position}
-        </p>
+        <p className="hidden truncate font-mono text-[10px] tracking-[0.14em] text-[#F4EFE4]/50 md:block">{team.name}</p>
         <p className="truncate font-mono text-[15px] tabular-nums tracking-wide text-[#F4EFE4]">
           {row.permanentNumber} {row.code}
           {isPurple ? <span className="ml-2 text-[10px] tracking-[0.14em]" style={{ color: PURPLE }}>FL</span> : null}

@@ -1,22 +1,15 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { CircuitRail } from "@/components/circuit-rail";
-import { DriverChip } from "@/components/driver-chip";
+import { Trophy } from "lucide-react";
+import { DriverChip, Portrait } from "@/components/driver-chip";
 import { ClassificationColumn } from "@/components/race-leaderboard";
 import { flagSrc } from "@/lib/flags";
 import { getHudSnap, subscribeHud } from "@/lib/lap-store";
-import { circuitSwitcherLabel, circuitSwitcherPlace, racePlace, raceTitle } from "@/lib/names";
+import { championships } from "@/lib/champions";
+import { racePlace, raceTitle } from "@/lib/names";
 import { activeRound, nearestStop } from "@/lib/stops";
-import { patternDash, teamById } from "@/lib/teams";
+import { patternDash, teamById, teamFillStyle } from "@/lib/teams";
 import type { Circuit, ContentStop, PaddockData, SeasonRound } from "@/lib/types";
 
 function formatDate(iso: string) {
@@ -44,6 +37,32 @@ function upcomingCopy(round: SeasonRound) {
   return "This round has not been run. The season is live, not archived.";
 }
 
+function RoundLabel({ round, suffix }: { round: SeasonRound; suffix: string }) {
+  const flag = flagSrc(round.country);
+  return (
+    <p className="inline-flex items-center gap-2.5 font-mono text-[11px] tracking-[0.32em] text-[#F4EFE4]/60">
+      {flag ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={flag} alt="" className="race-flag !h-[1.05rem] !w-[1.4rem]" width={22} height={16} />
+      ) : null}
+      ROUND {round.round} · {suffix}
+    </p>
+  );
+}
+
+export function ChampionBadge({ data }: { data: PaddockData }) {
+  const { drivers } = championships(data);
+  if (!drivers.clinched) return null;
+  const champ = drivers.leader;
+  return (
+    <span className="inline-flex items-center gap-2 border border-[#F5C542]/45 bg-[#F5C542]/10 px-3 py-1.5 font-mono text-[10px] tracking-[0.24em] text-[#F5C542]">
+      <Trophy className="size-3.5" aria-hidden="true" />
+      {data.season.year} WORLD CHAMPION · {champ.givenName.split(" ").at(-1)?.toUpperCase()}{" "}
+      {champ.familyName.toUpperCase()}
+    </span>
+  );
+}
+
 function IntroCard({ circuit, data }: { circuit: Circuit; data: PaddockData }) {
   const round = data.season.rounds.find((item) => item.circuitId === circuit.circuitId);
   return (
@@ -57,6 +76,9 @@ function IntroCard({ circuit, data }: { circuit: Circuit; data: PaddockData }) {
       <p className="mt-3 font-mono text-[11px] tracking-[0.32em] text-[#F4EFE4]/55">
         {data.season.year} · {data.season.completedRounds} OF {data.season.totalRounds} RUN
       </p>
+      <div className="mt-3">
+        <ChampionBadge data={data} />
+      </div>
       <h2
         className="mt-2 text-[clamp(1.55rem,3.6vw,2.6rem)] leading-[0.92] text-[#F4EFE4]/92"
         style={{ fontVariationSettings: '"wdth" 78', fontWeight: 560 }}
@@ -76,9 +98,7 @@ function RoundCard({ round, data }: { round: SeasonRound; data: PaddockData }) {
   if (round.status !== "completed") {
     return (
       <div className="text-center">
-        <p className="font-mono text-[11px] tracking-[0.32em] text-[#F4EFE4]/55">
-          ROUND {round.round} · UNRUN
-        </p>
+        <RoundLabel round={round} suffix="UNRUN" />
         <h2
           className="mt-3 text-[clamp(2.2rem,5.4vw,4.1rem)] leading-[0.86] text-[#F4EFE4]"
           style={{ fontVariationSettings: '"wdth" 72', fontWeight: 620 }}
@@ -95,9 +115,7 @@ function RoundCard({ round, data }: { round: SeasonRound; data: PaddockData }) {
 
   return (
     <div className="text-center">
-      <p className="font-mono text-[11px] tracking-[0.32em] text-[#F4EFE4]/55">
-        ROUND {round.round} · CHEQUERED
-      </p>
+      <RoundLabel round={round} suffix="CHEQUERED" />
       <h2
         className="mt-3 text-[clamp(2.2rem,5.4vw,4.1rem)] leading-[0.86] text-[#F4EFE4]"
         style={{ fontVariationSettings: '"wdth" 72', fontWeight: 620 }}
@@ -126,7 +144,7 @@ function StandingsCard({ data }: { data: PaddockData }) {
         className="mt-3 text-[clamp(2.2rem,5vw,3.8rem)] leading-[0.86] text-[#F4EFE4]"
         style={{ fontVariationSettings: '"wdth" 70', fontWeight: 650 }}
       >
-        Antonelli, then daylight
+        Antonelli, <span className="champion-gold">World Champion</span>
       </h2>
       <svg
         className="mx-auto mt-6 w-full max-w-[420px]"
@@ -195,23 +213,139 @@ function DriversCard({ data }: { data: PaddockData }) {
   );
 }
 
+function FinaleCard({ data }: { data: PaddockData }) {
+  const { drivers, constructors } = championships(data);
+  const champ = drivers.leader;
+  const team = teamById(data.teams, constructors.leader.constructorId);
+  const champTeam = teamById(data.teams, champ.constructorId);
+  const profile = data.drivers.find((item) => item.driverId === champ.driverId);
+  const teamDrivers = data.standings.drivers
+    .filter((item) => item.constructorId === constructors.leader.constructorId)
+    .map((item) => item.code)
+    .join(" · ");
+
+  return (
+    <div className="champion-in mx-auto max-w-[52rem]">
+      <div className="text-center">
+        <p className="font-mono text-[11px] tracking-[0.36em] text-[#F4EFE4]/60">
+          CHEQUERED FLAG · {data.season.year}
+        </p>
+        <h2
+          className="mt-2 text-[clamp(2rem,4.6vw,3.6rem)] leading-[0.86] text-[#F4EFE4]"
+          style={{ fontVariationSettings: '"wdth" 68', fontWeight: 720 }}
+        >
+          The <span className="champion-gold">Champions</span>
+        </h2>
+      </div>
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <section className="champion-card overflow-hidden text-left" aria-label="Drivers' championship">
+          <div className="checker-band" aria-hidden="true" />
+          <div className="flex items-center gap-4 p-4">
+            <span className="champion-ring shrink-0">
+              <Portrait driverId={champ.driverId} alt={`${champ.givenName} ${champ.familyName}`} size={96} />
+            </span>
+            <div className="min-w-0">
+              <p className="font-mono text-[10px] tracking-[0.26em] text-[#F5C542]">
+                {drivers.clinched ? "DRIVERS’ WORLD CHAMPION" : "DRIVERS’ LEADER"}
+              </p>
+              <p
+                className="mt-1 text-[1.75rem] leading-[0.95] text-[#F4EFE4]"
+                style={{ fontVariationSettings: '"wdth" 74', fontWeight: 680 }}
+              >
+                {champ.givenName}
+                <br />
+                {champ.familyName}
+              </p>
+              <p className="mt-1.5 flex items-center gap-2 font-mono text-[11px] tracking-[0.12em] text-[#F4EFE4]/70">
+                <span className="inline-block h-2.5 w-2.5" style={{ backgroundColor: champTeam.colour }} />
+                #{champ.permanentNumber} · {champTeam.name}
+              </p>
+            </div>
+          </div>
+          <dl className="hidden grid-cols-3 border-t border-[#F4EFE4]/10 font-mono sm:grid">
+            <div className="px-4 py-2.5">
+              <dt className="text-[9px] tracking-[0.24em] text-[#F4EFE4]/45">POINTS</dt>
+              <dd className="text-xl tabular-nums text-[#F4EFE4]">{champ.points}</dd>
+            </div>
+            <div className="px-4 py-2.5">
+              <dt className="text-[9px] tracking-[0.24em] text-[#F4EFE4]/45">WINS</dt>
+              <dd className="text-xl tabular-nums text-[#F4EFE4]">{champ.wins}</dd>
+            </div>
+            <div className="px-4 py-2.5">
+              <dt className="text-[9px] tracking-[0.24em] text-[#F4EFE4]/45">PODIUMS</dt>
+              <dd className="text-xl tabular-nums text-[#F4EFE4]">{profile?.season.podiums ?? "—"}</dd>
+            </div>
+          </dl>
+          <p className="border-t border-[#F5C542]/25 bg-[#F5C542]/10 px-4 py-2 font-mono text-[10px] tracking-[0.18em] text-[#F5C542]">
+            {drivers.clinched
+              ? `CLINCHED WITH ${drivers.roundsLeft} ROUNDS TO SPARE · +${drivers.gap} OVER ${drivers.runnerUp.code}`
+              : `LEADS BY ${drivers.gap} · ${drivers.roundsLeft} ROUNDS LEFT`}
+          </p>
+        </section>
+
+        <section className="champion-card overflow-hidden text-left" aria-label="Constructors' championship">
+          <div className="checker-band" aria-hidden="true" />
+          <div className="flex items-center gap-4 p-4">
+            <span
+              className="flex size-[102px] shrink-0 items-center justify-center rounded-full"
+              style={{ ...teamFillStyle(team), boxShadow: `0 0 36px ${team.colour}55` }}
+            >
+              <Trophy className="size-10 text-[#0A0F16]" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-mono text-[10px] tracking-[0.26em] text-[#F5C542]">
+                {constructors.clinched ? "CONSTRUCTORS’ CHAMPION" : "CONSTRUCTORS’ LEADER"}
+              </p>
+              <p
+                className="mt-1 text-[1.75rem] leading-[0.95] text-[#F4EFE4]"
+                style={{ fontVariationSettings: '"wdth" 74', fontWeight: 680 }}
+              >
+                {constructors.leader.name}
+              </p>
+              <p className="mt-1.5 font-mono text-[11px] tracking-[0.12em] text-[#F4EFE4]/70">{teamDrivers}</p>
+            </div>
+          </div>
+          <dl className="hidden grid-cols-3 border-t border-[#F4EFE4]/10 font-mono sm:grid">
+            <div className="px-4 py-2.5">
+              <dt className="text-[9px] tracking-[0.24em] text-[#F4EFE4]/45">POINTS</dt>
+              <dd className="text-xl tabular-nums text-[#F4EFE4]">{constructors.leader.points}</dd>
+            </div>
+            <div className="px-4 py-2.5">
+              <dt className="text-[9px] tracking-[0.24em] text-[#F4EFE4]/45">WINS</dt>
+              <dd className="text-xl tabular-nums text-[#F4EFE4]">{constructors.leader.wins}</dd>
+            </div>
+            <div className="px-4 py-2.5">
+              <dt className="text-[9px] tracking-[0.24em] text-[#F4EFE4]/45">GAP</dt>
+              <dd className="text-xl tabular-nums text-[#F4EFE4]">+{constructors.gap}</dd>
+            </div>
+          </dl>
+          <p className="border-t border-[#F4EFE4]/10 bg-[#F4EFE4]/[0.04] px-4 py-2 font-mono text-[10px] tracking-[0.18em] text-[#F4EFE4]/70">
+            {constructors.clinched
+              ? `CLINCHED · ${constructors.roundsLeft} ROUNDS TO SPARE`
+              : `${constructors.gap} CLEAR OF ${constructors.runnerUp.name.toUpperCase()} · ${constructors.roundsLeft} TO RUN`}
+          </p>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 export function Hud({
   data,
   circuit,
   stops,
-  onSelectCircuit,
-  circuitLoading,
 }: {
   data: PaddockData;
   circuit: Circuit;
   stops: ContentStop[];
-  onSelectCircuit: (id: string) => void;
-  circuitLoading: boolean;
 }) {
   const snap = useSyncExternalStore(subscribeHud, getHudSnap, getHudSnap);
   const { stop, proximity } = nearestStop(stops, snap.t);
-  const opacity = 0.42 + proximity * 0.58;
-  const travelRound = activeRound(stops, snap.t);
+  // Once past the chequered flag the champions stay fully lit for the rest of the lap
+  const opacity = stop.kind === "finale" && snap.t >= stop.t ? 1 : 0.42 + proximity * 0.58;
+  // At the start of the lap the results follow the GP whose track you are on
+  const homeRound = data.season.rounds.find((item) => item.circuitId === circuit.circuitId) ?? null;
+  const travelRound = stop.kind === "intro" && homeRound ? homeRound : activeRound(stops, snap.t);
   const race = travelRound ? data.results.rounds[String(travelRound.round)] ?? null : null;
   const rows = (race?.results ?? []).slice(0, 10);
   const left = rows.slice(0, 5);
@@ -223,23 +357,15 @@ export function Hud({
     if (stop.kind === "intro") return <IntroCard circuit={circuit} data={data} />;
     if (stop.kind === "standings") return <StandingsCard data={data} />;
     if (stop.kind === "drivers") return <DriversCard data={data} />;
+    if (stop.kind === "finale") return <FinaleCard data={data} />;
     return <RoundCard round={stop.round} data={data} />;
   }, [stop, circuit, data]);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
-      <div className="absolute inset-x-0 top-0 px-3 pt-2 sm:px-5 sm:pt-3">
-        <CircuitTape
-          data={data}
-          currentId={circuit.circuitId}
-          onSelect={onSelectCircuit}
-          loading={circuitLoading}
-        />
-      </div>
-
       {showFlanks ? (
         <>
-          <aside className="absolute top-[28%] left-3 hidden w-[15.5rem] md:block lg:left-5 xl:w-[17rem]">
+          <aside className="absolute top-[9%] left-3 hidden w-[15rem] md:block lg:left-5 xl:w-[16.5rem]">
             <ClassificationColumn
               rows={left}
               race={race}
@@ -249,7 +375,7 @@ export function Hud({
               label="1–5"
             />
           </aside>
-          <aside className="absolute top-[28%] right-3 hidden w-[15.5rem] md:block lg:right-[6.5rem] xl:right-[7.75rem] xl:w-[17rem]">
+          <aside className="absolute top-[9%] right-3 hidden w-[15rem] md:block lg:right-5 xl:w-[16.5rem]">
             <ClassificationColumn
               rows={right}
               race={race}
@@ -262,21 +388,14 @@ export function Hud({
         </>
       ) : null}
 
-      <CircuitRail
-        circuitIds={data.index.circuits}
-        currentId={circuit.circuitId}
-        season={data.season}
-        onSelect={onSelectCircuit}
-      />
-
       <div
-        className="absolute inset-x-[18%] top-[16%] hidden transition-opacity duration-200 md:block"
+        className={`absolute top-[7%] hidden transition-opacity duration-200 md:block ${stop.kind === "finale" ? "inset-x-[6%]" : "inset-x-[20%]"}`}
         style={{ opacity }}
       >
         {panel}
       </div>
       <div
-        className="absolute inset-x-4 top-[7.5rem] transition-opacity duration-200 md:hidden"
+        className="absolute inset-x-4 top-4 transition-opacity duration-200 md:hidden"
         style={{ opacity }}
       >
         {panel}
@@ -292,117 +411,6 @@ export function Hud({
       <p className="absolute bottom-4 left-1/2 hidden -translate-x-1/2 font-mono text-[11px] tracking-[0.28em] text-[#F4EFE4]/40 sm:block">
         LAP {(snap.t * 100).toFixed(0)}
       </p>
-    </div>
-  );
-}
-
-function CircuitTape({
-  data,
-  currentId,
-  onSelect,
-  loading,
-}: {
-  data: PaddockData;
-  currentId: string;
-  onSelect: (id: string) => void;
-  loading: boolean;
-}) {
-  const items = data.index.circuits.map((id) => {
-    const round = data.season.rounds.find((item) => item.circuitId === id);
-    return {
-      id,
-      title: circuitSwitcherLabel(id, data.season, id),
-      place: circuitSwitcherPlace(id, data.season),
-      country: round?.country ?? "",
-      round,
-    };
-  });
-
-  const mid = Math.ceil(items.length / 2);
-  const rows = [items.slice(0, mid), items.slice(mid)];
-
-  return (
-    <div className="pointer-events-auto race-nav">
-      <div className="hidden flex-col gap-2.5 md:flex">
-        {rows.map((row, rowIndex) => (
-          <div
-            key={rowIndex}
-            className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 lg:gap-x-5"
-          >
-            {row.map((item) => {
-              const active = item.id === currentId;
-              const flag = flagSrc(item.country);
-              const label =
-                item.id === "sepang" ? "KUALA LUMPUR" : item.place.toUpperCase();
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onSelect(item.id)}
-                  className="inline-flex items-center gap-1.5 transition-colors duration-200"
-                  style={{ color: active ? "#F4EFE4" : "rgba(244,239,228,0.42)" }}
-                  aria-current={active ? "true" : undefined}
-                >
-                  {flag ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={flag} alt="" className="race-flag" width={17} height={13} />
-                  ) : null}
-                  <span
-                    className="font-mono text-[10px] tracking-[0.14em] lg:text-[11px]"
-                    style={{
-                      fontVariationSettings: active ? '"wdth" 112' : '"wdth" 92',
-                      textDecoration: active ? "underline" : "none",
-                      textUnderlineOffset: "0.28em",
-                      textDecorationThickness: "1px",
-                    }}
-                  >
-                    {label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
-        {loading ? (
-          <p className="text-center font-mono text-[10px] tracking-[0.16em] text-[#F4EFE4]/40">
-            LINE…
-          </p>
-        ) : null}
-      </div>
-      <div className="flex justify-end md:hidden">
-        <Sheet>
-          <SheetTrigger className="inline-flex h-9 items-center border border-[#F4EFE4]/20 bg-transparent px-3 text-sm text-[#F4EFE4]">
-            Circuits
-          </SheetTrigger>
-          <SheetContent side="right" className="border-[#F4EFE4]/15 bg-[#0E141C] text-[#F4EFE4]">
-            <SheetHeader>
-              <SheetTitle className="text-[#F4EFE4]">Circuits with a racing line</SheetTitle>
-            </SheetHeader>
-            <div className="flex flex-col gap-2 p-4">
-              {items.map((item) => {
-                const flag = flagSrc(item.country);
-                return (
-                  <Button
-                    key={item.id}
-                    variant={item.id === currentId ? "secondary" : "ghost"}
-                    className="h-auto justify-start gap-2 whitespace-normal py-2 text-left text-[#F4EFE4]"
-                    onClick={() => onSelect(item.id)}
-                  >
-                    {flag ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={flag} alt="" className="race-flag" width={17} height={13} />
-                    ) : null}
-                    <span>
-                      {item.title}
-                      <span className="block font-mono text-[10px] opacity-70">{item.place}</span>
-                    </span>
-                  </Button>
-                );
-              })}
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
     </div>
   );
 }

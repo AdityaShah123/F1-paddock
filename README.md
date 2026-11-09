@@ -58,9 +58,10 @@ npx vercel --prod
 ## What you are looking at
 
 - **Lights-out** is the loader. It does not replay in the same tab.
-- **Scroll** drives the camera along OpenF1 position telemetry. The racing line is a continuous lit tube on an asphalt bed — gold/cream on the gas, red on the brakes.
-- **Race nav** is two rows of localities with country flags. The active GP is the hero track; other circuit silhouettes sit in the **orbit** rail on the right.
-- **Rounds** sit on the line. Each completed stop has a podium bar plot (P1 tallest) below the track, plus a purple fastest lap. Four unlit pins (Interlagos, Vegas, Losail, Yas Marina) are empty on purpose.
+- **Scroll** drives the camera along OpenF1 position telemetry. Flat asphalt with white edge lines and red/white kerbs in the corners; the racing line glows gold/cream on the gas, red on the brakes.
+- **Calendar strip** across the top is all 23 rounds in race order: circuit outline, flag, round, place. Click one to load its track and land on its results. The four unrun rounds are dimmed.
+- **Rounds** sit on the line as waving country flags on poles. Each completed stop has a podium below the track, plus a purple fastest lap. The four unrun rounds fly smaller, faded flags.
+- **Chequered flag** closes the lap: a finish gantry, the Drivers' World Champion (Antonelli, clinched with four to go) and the Constructors' leader, with both standings in the dock.
 - **This race** is the top 10, five names left and five right, flanking the circuit — full-colour Commons portraits.
 - **Standings** use `season-arc.json`. Colour is the team. Pattern / driver code breaks Audi vs Ferrari.
 - **Drivers** show a colour Commons portrait, a generated helmet, and the race number.

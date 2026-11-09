@@ -1,18 +1,27 @@
 import * as THREE from "three";
 import type { Circuit } from "./types";
 
+/**
+ * Exaggerate elevation so hills read on screen, but cap it by slope so flat street
+ * circuits (Baku, Miami) never turn into walls.
+ */
 export function elevationBoost(points: [number, number, number][]) {
   let minY = Infinity;
   let maxY = -Infinity;
-  for (const point of points) {
-    minY = Math.min(minY, point[1]);
-    maxY = Math.max(maxY, point[1]);
+  let maxSlope = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    minY = Math.min(minY, a[1]);
+    maxY = Math.max(maxY, a[1]);
+    const run = Math.hypot(b[0] - a[0], b[2] - a[2]);
+    if (run > 0.05) maxSlope = Math.max(maxSlope, Math.abs(b[1] - a[1]) / run);
   }
   const range = maxY - minY;
   if (range < 0.35) return 1;
-  if (range < 3) return 7.2;
-  if (range < 8) return 6.4;
-  return 3.2;
+  const byRange = 4.2 / range;
+  const bySlope = maxSlope > 0 ? 0.2 / maxSlope : 3;
+  return Math.min(3, Math.max(1, Math.min(byRange, bySlope)));
 }
 
 export function circuitCurve(circuit: Circuit) {

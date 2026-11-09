@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Lenis from "lenis";
 import { LightsOut, hasSeenLights } from "@/components/lights-out";
+import { CalendarStrip } from "@/components/calendar-strip";
 import { Hud } from "@/components/hud";
 import { PodiumDock } from "@/components/podium";
 import { ReducedJourney } from "@/components/reduced-journey";
@@ -105,20 +106,27 @@ export function Experience() {
     };
   }, [phase, reducedMotion, mobile, circuit?.circuitId]);
 
-  const selectCircuit = useCallback(async (id: string) => {
-    setCircuitLoading(true);
-    try {
-      const next = await loadCircuit(id);
-      setCircuit(next);
-      window.scrollTo({ top: 0, behavior: "auto" });
-      setLap(0, 0);
-      publishHud(0, 0);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "That circuit line failed to load");
-    } finally {
-      setCircuitLoading(false);
-    }
-  }, []);
+  const selectCircuit = useCallback(
+    async (id: string) => {
+      setCircuitLoading(true);
+      try {
+        const next = await loadCircuit(id);
+        setCircuit(next);
+        // Land on this GP's own stop so the results match the track you picked
+        const stop = stops.find((item) => item.kind === "round" && item.round.circuitId === id);
+        const t = stop?.t ?? 0;
+        const limit = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+        window.scrollTo({ top: t * limit, behavior: "auto" });
+        setLap(t, 0);
+        publishHud(t, 0);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "That circuit line failed to load");
+      } finally {
+        setCircuitLoading(false);
+      }
+    },
+    [stops],
+  );
 
   if (error && !data) {
     return (
@@ -162,19 +170,22 @@ export function Experience() {
         <>
           <div className="h-[920vh]" aria-hidden="true" />
           <div className="fixed inset-0 flex flex-col bg-[#0E141C]">
+            {phase === "drive" ? (
+              <CalendarStrip
+                season={data.season}
+                index={data.index}
+                currentId={circuit.circuitId}
+                onSelect={selectCircuit}
+                loading={circuitLoading}
+              />
+            ) : null}
             <div className="relative min-h-0 flex-1">
               <CircuitCanvas circuit={circuit} stops={stops} mobile={mobile} />
               {phase === "drive" ? (
-                <Hud
-                  data={data}
-                  circuit={circuit}
-                  stops={stops}
-                  onSelectCircuit={selectCircuit}
-                  circuitLoading={circuitLoading}
-                />
+                <Hud data={data} circuit={circuit} stops={stops} />
               ) : null}
             </div>
-            {phase === "drive" ? <PodiumDock data={data} stops={stops} /> : null}
+            {phase === "drive" ? <PodiumDock data={data} stops={stops} circuitId={circuit.circuitId} /> : null}
             {phase === "drive" ? (
               <div className="pointer-events-auto shrink-0">
                 <SiteFooter />

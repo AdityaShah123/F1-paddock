@@ -1,5 +1,11 @@
 import type { ContentStop, Season } from "./types";
 
+/**
+ * Where the chequered gantry stands. A lap is only ~300 scene units and the camera trails ~11
+ * behind, so the gantry must sit well before t=1 or it would block the opening view.
+ */
+export const FINISH_T = 0.92;
+
 export function buildStops(season: Season): ContentStop[] {
   const completed = season.rounds.filter((round) => round.status === "completed");
   const upcoming = season.rounds.filter((round) => round.status === "upcoming");
@@ -9,22 +15,25 @@ export function buildStops(season: Season): ContentStop[] {
     const span = Math.max(completed.length - 1, 1);
     stops.push({
       kind: "round",
-      t: 0.07 + (index / span) * 0.58,
+      t: 0.06 + (index / span) * 0.53,
       round,
     });
   });
 
-  stops.push({ kind: "standings", t: 0.72 });
-  stops.push({ kind: "drivers", t: 0.835 });
+  stops.push({ kind: "standings", t: 0.655 });
+  stops.push({ kind: "drivers", t: 0.725 });
 
   upcoming.forEach((round, index) => {
     const span = Math.max(upcoming.length - 1, 1);
     stops.push({
       kind: "round",
-      t: 0.9 + (index / span) * 0.085,
+      t: 0.785 + (index / span) * 0.06,
       round,
     });
   });
+
+  // The chequered flag and the champions close the lap; everything after it is the victory lap.
+  stops.push({ kind: "finale", t: 0.885 });
 
   return stops;
 }

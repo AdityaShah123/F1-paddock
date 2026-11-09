@@ -20,7 +20,7 @@ function PodiumColumn({
   team: Team;
 }) {
   return (
-    <div className="flex w-[9.5rem] flex-col items-center sm:w-44">
+    <div className="flex w-[6.6rem] flex-col items-center sm:w-44">
       <div className="flex items-center gap-2">
         <Portrait driverId={driver.driverId} alt="" size={place === 1 ? 56 : 48} />
         <HelmetMark number={driver.permanentNumber} pattern={team.pattern} size={place === 1 ? 32 : 26} />
@@ -71,15 +71,87 @@ export function PodiumBars({
   );
 }
 
-export function PodiumDock({ data, stops }: { data: PaddockData; stops: ContentStop[] }) {
+function ChampionshipTables({ data }: { data: PaddockData }) {
+  const drivers = data.standings.drivers.slice(0, 5);
+  const teams = data.standings.constructors.slice(0, 5);
+  const maxD = drivers[0]?.points || 1;
+  const maxT = teams[0]?.points || 1;
+  return (
+    <div className="mx-auto hidden max-w-5xl grid-cols-2 gap-x-12 py-1 sm:grid">
+      <section aria-label="Drivers' standings">
+        <p className="mb-1.5 font-mono text-[10px] tracking-[0.28em] text-[#F4EFE4]/45">DRIVERS</p>
+        <ol className="space-y-1">
+          {drivers.map((driver) => {
+            const team = teamById(data.teams, driver.constructorId);
+            return (
+              <li key={driver.driverId} className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
+                <span className="w-5 text-[#F4EFE4]/45">P{driver.position}</span>
+                <span className="w-9 text-[#F4EFE4]">{driver.code}</span>
+                <span className="relative h-3 flex-1 bg-[#F4EFE4]/[0.05]">
+                  <span
+                    className="absolute inset-y-0 left-0"
+                    style={{ width: `${(driver.points / maxD) * 100}%`, ...teamFillStyle(team) }}
+                  />
+                </span>
+                <span className={`w-10 text-right ${driver.position === 1 ? "text-[#F5C542]" : "text-[#F4EFE4]/80"}`}>
+                  {driver.points}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+      <section aria-label="Constructors' standings">
+        <p className="mb-1.5 font-mono text-[10px] tracking-[0.28em] text-[#F4EFE4]/45">CONSTRUCTORS</p>
+        <ol className="space-y-1">
+          {teams.map((entry) => {
+            const team = teamById(data.teams, entry.constructorId);
+            return (
+              <li key={entry.constructorId} className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
+                <span className="w-5 text-[#F4EFE4]/45">P{entry.position}</span>
+                <span className="w-20 truncate text-[#F4EFE4]">{entry.name}</span>
+                <span className="relative h-3 flex-1 bg-[#F4EFE4]/[0.05]">
+                  <span
+                    className="absolute inset-y-0 left-0"
+                    style={{ width: `${(entry.points / maxT) * 100}%`, ...teamFillStyle(team) }}
+                  />
+                </span>
+                <span className={`w-10 text-right ${entry.position === 1 ? "text-[#F5C542]" : "text-[#F4EFE4]/80"}`}>
+                  {entry.points}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    </div>
+  );
+}
+
+export function PodiumDock({
+  data,
+  stops,
+  circuitId,
+}: {
+  data: PaddockData;
+  stops: ContentStop[];
+  circuitId: string;
+}) {
   const snap = useSyncExternalStore(subscribeHud, getHudSnap, getHudSnap);
   const { stop } = nearestStop(stops, snap.t);
-  const round = stop.kind === "round" ? stop.round : null;
+  const round =
+    stop.kind === "round"
+      ? stop.round
+      : stop.kind === "intro"
+        ? (data.season.rounds.find((item) => item.circuitId === circuitId) ?? null)
+        : null;
   const fl = round ? data.results.rounds[String(round.round)]?.fastestLap : null;
 
   return (
     <div className="pointer-events-none shrink-0 border-t border-[#F4EFE4]/12 bg-[#0A1018] px-4 py-3 sm:px-8">
-      {round && round.status === "completed" ? (
+      {stop.kind === "finale" ? (
+        <ChampionshipTables data={data} />
+      ) : round && round.status === "completed" ? (
         <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-end sm:justify-center sm:gap-10">
           <p className="font-mono text-[10px] tracking-[0.28em] text-[#F4EFE4]/45 sm:mb-6">PODIUM</p>
           <PodiumBars round={round} drivers={data.drivers} teams={data.teams} />

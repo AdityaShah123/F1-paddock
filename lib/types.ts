@@ -163,10 +163,11 @@ export type PaddockData = {
   results: ResultsFile;
 };
 
-export type StopKind = "intro" | "round" | "standings" | "drivers";
+export type StopKind = "intro" | "round" | "standings" | "drivers" | "finale";
 
 export type ContentStop =
   | { kind: "intro"; t: number }
   | { kind: "round"; t: number; round: SeasonRound }
   | { kind: "standings"; t: number }
-  | { kind: "drivers"; t: number };
+  | { kind: "drivers"; t: number }
+  | { kind: "finale"; t: number };
