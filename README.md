@@ -6,32 +6,10 @@ The 2026 championship is still live: Antonelli 380, Verstappen 261, Hamilton 259
 
 Not affiliated with Formula 1. [Fan-site guidelines](https://www.formula1.com/en/information/guidelines.4EOKE9RRqevL4niTK9kWyt).
 
-## Pull & run (Windows)
-
-Aditya’s working folder:
+## Run locally (Windows)
 
 ```powershell
-cd "C:\All Data\Studies\Luma Hackathons\F1 paddock"
-git fetch origin
-git checkout main
-git pull origin main
-npm install
-npm run dev
-```
-
-Fresh clone (GitHub):
-
-```powershell
-git clone https://github.com/aditya-devangbhai-shah/kickstart.git "C:\All Data\Studies\Luma Hackathons\F1 paddock"
-cd "C:\All Data\Studies\Luma Hackathons\F1 paddock"
-npm install
-npm run dev
-```
-
-Or from Origin:
-
-```powershell
-git clone https://origin.cursor.com/git/aditya-devangbhai-shah/kickstart.git "C:\All Data\Studies\Luma Hackathons\F1 paddock"
+git clone https://github.com/AdityaShah123/F1-paddock.git "C:\All Data\Studies\Luma Hackathons\F1 paddock"
 cd "C:\All Data\Studies\Luma Hackathons\F1 paddock"
 npm install
 npm run dev
@@ -41,19 +19,10 @@ Open [http://localhost:43217](http://localhost:43217). Five red lights, then Spa
 
 ## Deploy (Vercel)
 
-From the same folder:
-
-```powershell
-npx vercel
-```
-
-Follow the prompts. Production:
-
-```powershell
-npx vercel --prod
-```
-
-`vercel.json` already pins the project. No env vars required for local or deploy.
+The repo is connected to Vercel through GitHub: import `AdityaShah123/F1-paddock` at
+[vercel.com/new](https://vercel.com/new), keep the detected Next.js defaults, and deploy.
+Every push to `main` then redeploys production; other branches get preview URLs.
+No env vars are required.
 
 ## What you are looking at
 
